@@ -36,15 +36,11 @@
 **Interfaces:**
 - Produces: the chosen ArduPilot/PX4 board name to clone, its MCU/peripheral map, and the confirmed sensor list (with any swaps) consumed by all later schematic tasks.
 
-- [ ] **Step 1: Pick the reference board.** Evaluate ArduPilot-supported H743 targets whose peripheral map is closest to this spec (candidates: `MatekH743`, `KakuteH7`, `HolybroKakuteH7`). Record in `reference-target.md`: board name, MCU part, SPI/I²C/UART/timer assignments, and the ArduPilot `hwdef.dat` URL (and/or PX4 board config). Decision rule: choose the one needing the fewest pin reassignments for our sensor + Jetson-TELEM set.
-- [ ] **Step 2: Verify sensor drivers.** In ArduPilot (`libraries/AP_InertialSensor`, `AP_Baro`, `AP_RangeFinder`) and PX4 (`src/drivers`), confirm drivers exist for ICM-20948, BMP581, VL53L4CX. Record findings + version in `sensor-support.md`.
-- [ ] **Step 3: Decide fallbacks.** For any unsupported sensor, record the chosen swap (BMP581→**DPS310** if needed; VL53L4CX→**VL53L1X** if needed) and the reason. Output a final locked sensor list.
-- [ ] **Step 4: Review gate.** Re-read the spec's Sensors + Firmware sections; confirm the locked target + sensor list satisfy them. Note any spec deltas.
-- [ ] **Step 5: Commit.**
-```bash
-git add docs/superpowers/hardware/
-git commit -m "hw: lock H743 reference target and confirmed sensor list"
-```
+- [x] **Step 1: Pick the reference board.** → **MatekH743** (`MATEKH743` hwdef). Recorded in `reference-target.md` with full peripheral map + deviations.
+- [x] **Step 2: Verify sensor drivers.** ICM-20948 ✅ (Invensensev2), BMP581 ✅ (I²C), VL53L4CX ❌. Recorded in `sensor-support.md`.
+- [x] **Step 3: Decide fallbacks.** VL53L4CX → **VL53L1X**; baro moved to I²C. Locked sensor list recorded.
+- [x] **Step 4: Review gate.** Spec sensor table, architecture block, and open questions updated; plan Task 5 updated (baro on I²C, ToF = VL53L1X).
+- [x] **Step 5: Commit.** (done — see git history)
 
 ---
 
@@ -120,13 +116,16 @@ git commit -m "hw: schematic - power tree (protection, ORing, 3V3, sense)"
 - Modify: `hardware/fc/fc.kicad_sch` (sensor sheet)
 
 **Interfaces:**
-- Consumes: `3V3`, analog rail, `GND`, SPI1 nets (`SPI1_SCK/MISO/MOSI`), `IMU_CS`, `IMU_INT`, `BARO_CS`, I²C2 nets (`I2C2_SCL/SDA`).
+- Consumes: `3V3`, analog rail, `GND`, SPI1 nets (`SPI1_SCK/MISO/MOSI`), `IMU_CS`, `IMU_INT`, I²C2 nets (`I2C2_SCL/SDA`), `TOF_XSHUT`.
 - Produces: populated sensor nets; the alternate-IMU footprint pads.
 
+> **Task 1 result:** BMP581 is an **I²C** driver (not SPI); ToF is **VL53L1X**
+> (VL53L4CX has no ArduPilot driver). IMU stays SPI1 (Invensensev2).
+
 - [ ] **Step 1: ICM-20948** on SPI1 with `IMU_CS`, `IMU_INT` to a timer-capable GPIO, 100 nF decoupling, mode-select pins strapped for SPI.
-- [ ] **Step 2: Alternate IMU site** — place an **ICM-42688-P** footprint sharing SPI1 + a second `IMU2_CS`/`IMU2_INT` (DNP now), so a future swap is populate-only. Document the do-not-populate set.
-- [ ] **Step 3: Baro** — BMP581 (or DPS310 per Task 1) on SPI1 with `BARO_CS` + decoupling.
-- [ ] **Step 4: Compass + ToF** — bring I²C2 (`SCL/SDA`) with 4.7 k pullups to the GPS-GH connector (compass) and to the ToF-GH connector; ToF `XSHUT` to a GPIO.
+- [ ] **Step 2: Alternate IMU site** — place an **ICM-42688-P** footprint sharing SPI1 + `IMU_CS`/`IMU_INT` (DNP now; this matches the native MATEKH743 SPI1 IMU line), so a future swap is populate-only. Document the do-not-populate set.
+- [ ] **Step 3: Baro** — **BMP581 on the I²C2 bus** (addr 0x46) with 100 nF decoupling (no `BARO_CS`).
+- [ ] **Step 4: Compass + ToF** — I²C2 (`SCL/SDA`) with 4.7 k pullups to the GPS-GH connector (compass) and to the ToF-GH connector for the **VL53L1X**; `TOF_XSHUT` to a GPIO.
 - [ ] **Step 5: ERC** the sensor sheet → 0 errors.
 - [ ] **Step 6: Commit.**
 ```bash

@@ -54,9 +54,8 @@ deliverable — designed so the companion-computer/autonomy phases drop in clean
    USB-C ──────────┤ STM32H743 (480MHz M7, 2MB flash) ├────── Timers ─→ 4× DShot ESC
                    │  ArduPilot / PX4 · native USB     │
    SPI1 ─ IMU  ICM-20948  (+ alternate footprint/site for ICM-42688-P)
-   SPI  ─ BMP581 baro
    SDMMC ─ microSD (blackbox flight logging)
-   I²C  ─ external compass (in GPS unit) · VL53L4CX ToF (remote port)
+   I²C  ─ BMP581 baro · external compass (in GPS unit) · VL53L1X ToF (remote port)
    UARTs ─ SBUS RX (FrSky R-XSR, HW-inverted) · GPS · TELEM→Jetson (MAVLink) · 1 spare
    ADC  ─ VBAT sense · current sense
    Power ─ PDB 5V → onboard 3.3V; USB/PDB ORed; Jetson powered separately
@@ -85,16 +84,16 @@ equally viable (and Lua scripting is the gentlest custom-autonomy on-ramp).
 
 | Sensor | Role | Bus | Notes |
 |---|---|---|---|
-| ICM-20948 | IMU (9-axis) | SPI1 | Supported by ArduPilot/PX4; reuses existing mag-cal know-how |
-| ICM-42688-P | future IMU | SPI1 | Alternate footprint/site reserved; ~5× lower gyro noise; 6-axis (needs separate mag) |
-| BMP581 | barometer | SPI | **Driver support to verify**; fallback DPS310 if not native |
-| VL53L4CX | downward ToF | I²C (remote) | **Driver support to verify**; fallback VL53L1X; stays on the existing down-bracket |
-| compass | heading | I²C | Lives in the external GPS unit |
+| ICM-20948 | IMU (9-axis) | SPI1 | ✅ ArduPilot `Invensensev2`; reuses existing mag-cal know-how |
+| ICM-42688-P | future IMU | SPI1 | Alternate footprint on SPI1 (= native MATEKH743 line); ~5× lower gyro noise; 6-axis (needs separate mag) |
+| BMP581 | barometer | **I²C** | ✅ ArduPilot `AP_Baro_BMP581` (I²C 0x46) — confirmed; driver is I²C, **not SPI** |
+| VL53L1X | downward ToF | I²C (remote) | **swapped from VL53L4CX** (no driver); VL53L1X ✅ supported; fits the existing down-bracket |
+| compass | heading | I²C | AK09916 in the ICM-20948 (bypass) and/or external in the GPS unit |
 
-**Open item:** verify ArduPilot/PX4 native driver support for **BMP581** and
-**VL53L4CX**. If unsupported, either select a natively-supported equivalent
-(DPS310 baro, VL53L1X ToF) or write/port a driver. ICM-20948 is confirmed
-supported.
+**Resolved (Task 1, 2026-06-29):** ICM-20948 ✅ and BMP581 ✅ are natively
+supported in ArduPilot; BMP581 is an **I²C** driver (baro moved off SPI).
+**VL53L4CX has no driver → swapped to VL53L1X** (supported). See
+`docs/superpowers/hardware/sensor-support.md`.
 
 ### Control link
 
@@ -174,5 +173,7 @@ PDB current output ───────[RC filter]────→ ADC
 ## Open questions
 
 - ArduPilot vs PX4 (deferred — hardware supports both; decide at bring-up).
-- BMP581 / VL53L4CX native driver support (verify; fallbacks identified).
-- Exact reference board to clone for the firmware target.
+- ~~BMP581 / VL53L4CX driver support~~ — **resolved (Task 1):** BMP581 ✅ (I²C),
+  VL53L4CX → **VL53L1X**. See `hardware/sensor-support.md`.
+- ~~Reference board~~ — **resolved (Task 1): MatekH743** (custom hwdef forked from
+  `MATEKH743`). See `hardware/reference-target.md`.
