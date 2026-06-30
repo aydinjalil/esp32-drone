@@ -1,6 +1,6 @@
 # ICM-20948 IMU — Status & Engineering Notes
 
-_Last updated: 2026-06-13_
+_Last updated: 2026-06-30_
 
 Attitude + heading (AHRS) subsystem for the ESP32 drone, built around an
 Adafruit ICM-20948 (accel + gyro + AK09916 magnetometer) over I²C.
@@ -17,8 +17,9 @@ when you roll the board" bug is **fixed**.
 | Item | Value |
 |---|---|
 | Sensor | Adafruit ICM-20948 (ICM-20948 + AK09916 mag) |
-| Bus | I²C, default address (`ICM20948_I2CADDR_DEFAULT`) |
+| Bus | I²C, address **0x69** (SDO/AD0 wired to VCC — *not* the 0x68 default) |
 | Pins | SDA = GPIO 21, SCL = GPIO 22 |
+| Board | classic ESP32 DevKit (WROOM-32); shares bus with BMP581 0x47, ToF 0x29 |
 | Clock | 100 kHz |
 | Pull-ups | Onboard breakout pull-ups only (no external resistors added) |
 | Accel range | ±4 g |
@@ -45,7 +46,9 @@ time_ms,roll_deg,pitch_deg,yaw_deg,magYaw_deg,mx,my,mz,gz,dt
   blended with accel gravity vector (`accRoll = atan2(-ay, az)`,
   `accPitch = atan2(ax, sqrt(ay²+az²))`).
 - **Yaw:** gyro integration nudged toward the tilt-compensated magnetic heading
-  with a small gain, `beta = 0.005`.
+  with a small gain, `beta = 0.01` (~1.7 s settle; was 0.005/~3.4 s). Gyro tracks
+  instantly; the mag trims drift slowly. Raise for faster lock, lower for less
+  mag noise.
 - **Tilt compensation:** standard Freescale-style formula
   (`bx = mx·cp + my·sr·sp + mz·cr·sp`, `by = my·cr − mz·sr`,
   `magYaw = atan2(−by, bx)`). This math was always correct — the bug was the
@@ -56,15 +59,18 @@ time_ms,roll_deg,pitch_deg,yaw_deg,magYaw_deg,mx,my,mz,gz,dt
 to body frame.
 
 ```c
-const float MAG_B[3] = { -13.5353f, -31.0572f, 75.9761f };   // hard iron
+const float MAG_B[3] = { -7.4741f, 24.7962f, -20.4835f };    // hard iron
 const float MAG_A[3][3] = {                                   // soft iron (3x3)
-  {  0.9747f, -0.0153f,  0.0226f },
-  { -0.0153f,  1.0855f, -0.0771f },
-  {  0.0226f, -0.0771f,  0.9614f }
+  {  0.9916f,  0.0397f, -0.0145f },
+  {  0.0397f,  0.9474f,  0.0108f },
+  { -0.0145f,  0.0108f,  1.0731f }
 };
 ```
-Source: 100%-sphere-coverage capture (axis ratio 1.22, off-diagonal 7.7%).
-Regenerate with `mag_calibrate.py` (see §5).
+Source: **on-drone** capture (2026-06-30, 11045 samples; axis ratio 1.17,
+off-diagonal 4.0%, CV 8.37%). The residual CV is laptop proximity during capture
+— recapture far from metal/electronics for flight-grade heading. Earlier bench
+values were `MAG_B = {-13.54, -31.06, 75.98}` (CV 8.8%). Regenerate with
+`mag_calibrate.py` (see §5).
 
 ---
 
@@ -170,16 +176,18 @@ tuned so the rendered board matches the physical board.
 
 ---
 
-## 7. Calibration quality (current)
+## 7. Calibration quality (current — on-drone, 2026-06-30)
 
-- Total field `|m|` CV in flight-style data: **1.9%** (excellent).
-- Ellipsoid axis ratio: **1.22** (near-spherical).
-- Soft-iron off-diagonal: **7.7%** of diagonal (mild tilt).
-- Tilt compensation: `dH/droll ≈ 0.006 µT/deg` (roll-invariant).
+- Ellipsoid axis ratio: **1.17** (near-spherical).
+- Soft-iron off-diagonal: **4.0%** of diagonal (mild tilt).
+- Field `|m|` CV after fit: **8.37%** — above the <5% target.
 
-> Note: the calibration *capture* reported ~8.8% CV; the lower 1.9% on later data
-> confirms that residual was **environmental** (moving through a non-uniform
-> field during capture), not a fit limitation.
+> The 8.37% residual is **environmental**: this capture was done with the laptop
+> close to the drone (USB tether), and a laptop is a strong, time-varying magnetic
+> source. The fit *shape* is good (ratio 1.17); the limiter is the capture
+> environment. For flight-grade heading, **recapture far from the laptop/metal**
+> (longest USB cable, open room or outdoors) and aim for CV < 5%. The earlier
+> bench capture reached ~1.9% CV on clean later data, so <5% is achievable here.
 
 ---
 
