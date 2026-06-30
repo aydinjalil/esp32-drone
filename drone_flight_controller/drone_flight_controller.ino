@@ -9,6 +9,7 @@
 #include <Adafruit_ICM20948.h>
 #include <vl53l4cx_class.h> // (laser distance measurer)
 #include <ESP32Servo.h>
+#include "BluetoothSerial.h"
 
 // Optional Sensor
 #include <Adafruit_SSD1306.h> // Display
@@ -111,6 +112,9 @@ bool tofValid = false;
 bool tofPresent = false;   // false until ToF inits OK; baro-only altitude if absent
 bool zeroed = false;
 
+// Bluetooth Classic (SPP) control channel — mirrors the USB serial interface.
+BluetoothSerial SerialBT;
+bool btWasConnected = false;   // for the BT link-loss failsafe
 
 // ========================================================
 // Flight Control Variables
@@ -322,35 +326,38 @@ bool preArmOK(){
   return level && still && sensorsOK && !killed;
 }
 
-void processCommands(){
-  while (Serial.available()){
-    char c = Serial.read();
-    if (c == 'a'){
-      if (preArmOK()){
-        takeoffGroundPressure = groundPressure;   // freeze altitude reference
-        armed = true;
-        manualThrottle = 0.0f;                    // always start at idle
-        Serial.println("ARMED");
-      } else {
-        Serial.println("ARM REFUSED (not level/still, or killed)");
-      }
-    } else if (c == 'd'){
-      armed = false; manualThrottle = 0.0f; Serial.println("DISARMED");
-    } else if (c == 'k'){
-      killed = true; armed = false; manualThrottle = 0.0f; Serial.println("KILL");
-    } else if (c == 'r'){
-      if (!armed){ killed = false; Serial.println("KILL RESET"); }
-    } else if (c == '+' || c == '='){
-      manualThrottle = constrain(manualThrottle + THR_STEP, 0.0f, THR_MAX);
-      Serial.printf("THR %.2f\n", manualThrottle);
-    } else if (c == '-' || c == '_'){
-      manualThrottle = constrain(manualThrottle - THR_STEP, 0.0f, THR_MAX);
-      Serial.printf("THR %.2f\n", manualThrottle);
-    } else if (c == '0' || c == ' '){
-      manualThrottle = 0.0f;
-      Serial.println("THR 0 (idle)");
+// Handle one command character from any input stream (USB or Bluetooth).
+void handleCommand(char c){
+  if (c == 'a'){
+    if (preArmOK()){
+      takeoffGroundPressure = groundPressure;   // freeze altitude reference
+      armed = true;
+      manualThrottle = 0.0f;                    // always start at idle
+      Serial.println("ARMED");
+    } else {
+      Serial.println("ARM REFUSED (not level/still, or killed)");
     }
+  } else if (c == 'd'){
+    armed = false; manualThrottle = 0.0f; Serial.println("DISARMED");
+  } else if (c == 'k'){
+    killed = true; armed = false; manualThrottle = 0.0f; Serial.println("KILL");
+  } else if (c == 'r'){
+    if (!armed){ killed = false; Serial.println("KILL RESET"); }
+  } else if (c == '+' || c == '='){
+    manualThrottle = constrain(manualThrottle + THR_STEP, 0.0f, THR_MAX);
+    Serial.printf("THR %.2f\n", manualThrottle);
+  } else if (c == '-' || c == '_'){
+    manualThrottle = constrain(manualThrottle - THR_STEP, 0.0f, THR_MAX);
+    Serial.printf("THR %.2f\n", manualThrottle);
+  } else if (c == '0' || c == ' '){
+    manualThrottle = 0.0f;
+    Serial.println("THR 0 (idle)");
   }
+}
+
+void processCommands(){
+  while (Serial.available())   handleCommand(Serial.read());
+  while (SerialBT.available()) handleCommand(SerialBT.read());
 }
 
 void detectDisarm(){
@@ -435,6 +442,9 @@ void setup() {
   
   Serial.begin(115200);
   delay(2000);   // do NOT block on Serial — controller must boot untethered
+
+  SerialBT.begin("DRONE_FC");   // pairs on macOS as /dev/cu.DRONE_FC
+  Serial.println("Bluetooth started: DRONE_FC");
 
   // -------------------------
   // I2C SETUP
