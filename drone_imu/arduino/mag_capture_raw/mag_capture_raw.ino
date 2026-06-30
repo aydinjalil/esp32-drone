@@ -35,7 +35,7 @@ const int   MAX_BAD_READS     = 10;   // ~0.2 s at 50 Hz before we re-init
 int badReads = 0;
 
 bool initIMU() {
-  if (!imu.begin_I2C(ICM20948_I2CADDR_DEFAULT, &Wire)) return false;
+  if (!imu.begin_I2C(0x69, &Wire)) return false;   // SDO/AD0 wired HIGH -> 0x69 (confirmed by i2c_scan)
   imu.setMagDataRate(AK09916_MAG_DATARATE_100_HZ);
   return true;
 }

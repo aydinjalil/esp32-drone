@@ -138,7 +138,7 @@ bool isValidFloat(float x) {
 }
 
 bool initIMU() {
-  if (!imu.begin_I2C(ICM20948_I2CADDR_DEFAULT, &I2Cdev)) return false;
+  if (!imu.begin_I2C(0x69, &I2Cdev)) return false;   // SDO/AD0 wired HIGH -> 0x69 (confirmed by i2c_scan)
   imu.setAccelRange(ICM20948_ACCEL_RANGE_4_G);
   imu.setGyroRange(ICM20948_GYRO_RANGE_500_DPS);
   imu.setMagDataRate(AK09916_MAG_DATARATE_100_HZ);

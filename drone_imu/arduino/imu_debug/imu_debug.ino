@@ -21,14 +21,16 @@ float dt = 0.01f;
 // Magnetometer hard-iron offset and soft-iron matrix (native sensor frame).
 // Calibrated sample:  m_cal = MAG_A * (m_raw - MAG_B)
 // Generate these with python/calibration/mag_calibrate.py and paste the output
-// here. Values below are from the 100%-coverage capture (axis ratio 1.22,
-// off-diagonal 7.7%, CV 8.8%) -- near-spherical, a good calibration.
-const float MAG_B[3] = { -13.5353f, -31.0572f, 75.9761f };
+// here. Values below are from the ON-DRONE capture (2026-06-30, 11045 samples,
+// axis ratio 1.17, off-diagonal 4.0%, CV 8.37%) -- near-spherical. Residual CV
+// likely from laptop proximity during capture; recapture farther from metal for
+// flight-grade heading.
+const float MAG_B[3] = { -7.4741f, 24.7962f, -20.4835f };
 
 const float MAG_A[3][3] = {
-  {  0.9747f, -0.0153f,  0.0226f },
-  { -0.0153f,  1.0855f, -0.0771f },
-  {  0.0226f, -0.0771f,  0.9614f }
+  {  0.9916f,  0.0397f, -0.0145f },
+  {  0.0397f,  0.9474f,  0.0108f },
+  { -0.0145f,  0.0108f,  1.0731f }
 };
 
 // Stall detection / recovery. The ICM-20948 reads its magnetometer over an
@@ -41,7 +43,7 @@ int staleCount = 0;
 float prev_gx_raw = 1e9f, prev_gy_raw = 1e9f, prev_gz_raw = 1e9f;
 
 bool initIMU() {
-  if (!imu.begin_I2C(ICM20948_I2CADDR_DEFAULT, &Wire)) return false;
+  if (!imu.begin_I2C(0x69, &Wire)) return false;   // SDO/AD0 wired HIGH -> 0x69 (confirmed by i2c_scan)
   imu.setAccelRange(ICM20948_ACCEL_RANGE_4_G);
   imu.setGyroRange(ICM20948_GYRO_RANGE_500_DPS);
   imu.setMagDataRate(AK09916_MAG_DATARATE_100_HZ);
@@ -198,7 +200,7 @@ void loop() {
     if (err > PI)  err -= 2.0f * PI;
     if (err < -PI) err += 2.0f * PI;
 
-    const float beta = 0.005f;
+    const float beta = 0.01f;   // mag->yaw nudge gain; ~1.7s settle (was 0.005 ~3.4s)
     yaw += beta * err;
 
     if (yaw > PI)  yaw -= 2.0f * PI;
