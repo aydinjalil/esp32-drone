@@ -127,6 +127,12 @@ float motorFR = 0.0f, motorFL = 0.0f, motorBL = 0.0f, motorBR = 0.0f;
 // Pilot inputs (simulated - will replace with RC receiver)
 float throttle = 0.0f, target_roll = 0.0f, target_pitch = 0.0f;
 
+// Manual serial throttle (pilot-driven; no RC yet). Incremental + bounded so no
+// single command (or a bad sensor zero) can cause a large throttle jump.
+float manualThrottle = 0.0f;     // 0 .. THR_MAX
+const float THR_STEP = 0.02f;    // 2% per keypress
+const float THR_MAX  = 0.75f;    // early-test ceiling; raise after validation
+
 // Attitude PID
 float Kp = 1.5f, Ki = 0.05f, Kd = 0.2f;
 float errI_roll = 0, errI_pitch = 0, lastErr_roll = 0, lastErr_pitch = 0;
@@ -323,16 +329,26 @@ void processCommands(){
       if (preArmOK()){
         takeoffGroundPressure = groundPressure;   // freeze altitude reference
         armed = true;
+        manualThrottle = 0.0f;                    // always start at idle
         Serial.println("ARMED");
       } else {
         Serial.println("ARM REFUSED (not level/still, or killed)");
       }
     } else if (c == 'd'){
-      armed = false; Serial.println("DISARMED");
+      armed = false; manualThrottle = 0.0f; Serial.println("DISARMED");
     } else if (c == 'k'){
-      killed = true; armed = false; Serial.println("KILL");
+      killed = true; armed = false; manualThrottle = 0.0f; Serial.println("KILL");
     } else if (c == 'r'){
       if (!armed){ killed = false; Serial.println("KILL RESET"); }
+    } else if (c == '+' || c == '='){
+      manualThrottle = constrain(manualThrottle + THR_STEP, 0.0f, THR_MAX);
+      Serial.printf("THR %.2f\n", manualThrottle);
+    } else if (c == '-' || c == '_'){
+      manualThrottle = constrain(manualThrottle - THR_STEP, 0.0f, THR_MAX);
+      Serial.printf("THR %.2f\n", manualThrottle);
+    } else if (c == '0' || c == ' '){
+      manualThrottle = 0.0f;
+      Serial.println("THR 0 (idle)");
     }
   }
 }
