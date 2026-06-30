@@ -4,3 +4,6 @@
 
 # Python virtual environment
 .sensor/
+
+# Subagent-driven-dev scratch
+.superpowers/
