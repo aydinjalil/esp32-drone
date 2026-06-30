@@ -355,7 +355,7 @@ void processCommands(){
 
 void detectDisarm(){
   if (armed && tofValid && tofAlt < 0.2f && fabs(v) < 0.05f){
-    armed = false;
+    armed = false; manualThrottle = 0.0f;
     Serial.println("🚁 DISARMED - Auto-zero resume");
   }
 }
@@ -584,7 +584,7 @@ void loop() {
   if (gx == prev_gx_raw && gy == prev_gy_raw && gz == prev_gz_raw) {
     if (++staleCount >= STALE_LIMIT) {
       Serial.println("# IMU stall — disarm + idle + re-init");
-      armed = false;        // degraded mode: drop arm on sensor loss
+      armed = false; manualThrottle = 0.0f;   // degraded mode: drop arm + throttle on sensor loss
       writeMotorsIdle();
       initIMU();
       staleCount = 0;
