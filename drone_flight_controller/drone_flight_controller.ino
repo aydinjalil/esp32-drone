@@ -614,10 +614,10 @@ void loop() {
     kalmanUpdate(baroAlt, R_baro);
   }
 
-  // Pilot Inputs (Simulated — replace with RC + failsafe)
-  throttle = 0.55f + 0.1f * sin(now * 0.001f);    // Hover + climb
-  target_roll = 5.0f * sin(now* 0.002f);          // ±5° roll command
-  target_pitch = 5.0f * cos(now * 0.0015f);       // ±5° pitch command
+  // Pilot inputs: manual serial throttle, self-level attitude (no RC yet)
+  throttle     = manualThrottle;
+  target_roll  = 0.0f;
+  target_pitch = 0.0f;
 
   // CONTROL + MOTOR OUTPUT — only when armed and not killed.
   float safeThrottle = 0.0f;
