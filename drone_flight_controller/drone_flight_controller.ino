@@ -360,6 +360,18 @@ void processCommands(){
   while (SerialBT.available()) handleCommand(SerialBT.read());
 }
 
+// BT link-loss failsafe: if the Bluetooth client disconnects while armed,
+// disarm and idle the motors (same actions as 'd'/'k'). Latency = BT
+// supervision timeout: ~instant on a clean disconnect, a few seconds on range loss.
+void checkBtFailsafe(){
+  bool nowConnected = SerialBT.hasClient();
+  if (btWasConnected && !nowConnected && armed){
+    armed = false; manualThrottle = 0.0f; writeMotorsIdle();
+    Serial.println("BT LOST - disarmed");
+  }
+  btWasConnected = nowConnected;
+}
+
 void detectDisarm(){
   if (armed && tofValid && tofAlt < 0.2f && fabs(v) < 0.05f){
     armed = false; manualThrottle = 0.0f;
@@ -612,6 +624,7 @@ void loop() {
   stepIMU();
   updateGroundPressure();
   processCommands();
+  checkBtFailsafe();
   detectDisarm();
   kalmanPredict();
 
