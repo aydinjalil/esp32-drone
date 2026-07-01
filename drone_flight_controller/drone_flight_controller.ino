@@ -668,7 +668,7 @@ void loop() {
 
   char tbuf[200];
   snprintf(tbuf, sizeof(tbuf),
-           "h:%.2f v:%+.2f state:%s thr:%.3f | r:%.1f/%+.1f p:%.1f/%+.1f | mFR:%.2f mFL:%.2f mBL:%.2f mBR:%.2f | tof:%.0fmm\n",
+           "h:%.2f v:%+.2f state:%s thr:%.3f | r:%.1f/%+.1f p:%.1f/%+.1f | mFR:%.2f mFL:%.2f mBL:%.2f mBR:%.2f | tof:%.0fmm\r\n",
            h, v, killed?"KILL":(armed?"ARM":"OFF"), safeThrottle,
            roll*180/PI, target_roll,
            pitch*180/PI, target_pitch,
