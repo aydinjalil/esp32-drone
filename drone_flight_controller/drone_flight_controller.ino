@@ -667,17 +667,17 @@ void loop() {
   }
 
   char tbuf[200];
-  int tlen = snprintf(tbuf, sizeof(tbuf),
+  snprintf(tbuf, sizeof(tbuf),
            "h:%.2f v:%+.2f state:%s thr:%.3f | r:%.1f/%+.1f p:%.1f/%+.1f | mFR:%.2f mFL:%.2f mBL:%.2f mBR:%.2f | tof:%.0fmm\n",
            h, v, killed?"KILL":(armed?"ARM":"OFF"), safeThrottle,
            roll*180/PI, target_roll,
            pitch*180/PI, target_pitch,
            motorFR, motorFL, motorBL, motorBR,
            tofValid ? tofAlt*1000 : -1);
-  Serial.print(tbuf);   // UART transmits regardless of a listener — never blocks
-  // Non-blocking BT mirror: only write if the whole line fits the TX buffer, so a
-  // stalled/connected BT peer can never freeze the loop (and thus the kill path).
-  if (SerialBT.hasClient() && tlen > 0 && SerialBT.availableForWrite() >= tlen) {
-    SerialBT.print(tbuf);
-  }
+  Serial.print(tbuf);
+  // Mirror telemetry to BT when a client is connected. (An earlier
+  // availableForWrite() >= len guard blocked ALL BT output on real hardware —
+  // that value is unreliable on this BluetoothSerial build. Revisit non-blocking
+  // via setTxBufferSize once BT is confirmed working.)
+  if (SerialBT.hasClient()) SerialBT.print(tbuf);
 }
