@@ -116,12 +116,6 @@ bool zeroed = false;
 BluetoothSerial SerialBT;
 bool btWasConnected = false;   // for the BT link-loss failsafe
 
-// Dead-man command timeout: if no command byte arrives (USB or BT) for this long
-// while armed, disarm + idle. Catches a closed/frozen/crashed control terminal —
-// cases where macOS keeps the BT link up, so hasClient() alone misses them.
-unsigned long lastCmdMs = 0;
-const unsigned long CMD_TIMEOUT_MS = 3000;   // 3 s without input -> disarm
-
 // ========================================================
 // Flight Control Variables
 // ========================================================
@@ -362,9 +356,8 @@ void handleCommand(char c){
 }
 
 void processCommands(){
-  // Any byte from either channel is operator activity -> reset the dead-man timer.
-  while (Serial.available())   { lastCmdMs = millis(); handleCommand(Serial.read()); }
-  while (SerialBT.available()) { lastCmdMs = millis(); handleCommand(SerialBT.read()); }
+  while (Serial.available())   handleCommand(Serial.read());
+  while (SerialBT.available()) handleCommand(SerialBT.read());
 }
 
 // BT link-loss failsafe: if the Bluetooth client disconnects while armed,
@@ -377,14 +370,6 @@ void checkBtFailsafe(){
     Serial.println("BT LOST - disarmed");
   }
   btWasConnected = nowConnected;
-
-  // Dead-man: no command for CMD_TIMEOUT_MS while armed -> disarm + idle.
-  // Catches closed/frozen/crashed terminal (which macOS won't report as a
-  // disconnect). Any keystroke over USB or BT resets lastCmdMs in processCommands.
-  if (armed && (millis() - lastCmdMs > CMD_TIMEOUT_MS)){
-    armed = false; manualThrottle = 0.0f; writeMotorsIdle();
-    Serial.println("NO CMD - disarmed (dead-man timeout)");
-  }
 }
 
 void detectDisarm(){
