@@ -45,6 +45,13 @@ off) → powered test.
 - **Anti-windup** on the integral (this time it's real — unlike the simulated
   throttle we mistook for windup earlier).
 - Mode toggle: manual ↔ altitude-hold, and behavior on arm.
+- **Revisit the vertical-channel bench hacks** in the FC: the a_z deadband
+  (`|a_z| < 0.2 → 0` in `computeVerticalAcceleration()`) and the `v *= 0.90`
+  damping in `stepIMU()` suppress bench drift, but they also erase genuine
+  constant-velocity climbs/descents (a_z ≈ 0 while moving → `v` decays ~99%/s).
+  The KF covariance now converges properly, so reduce/remove these and let the
+  filter do its job — altitude hold can't work well with a `v` that lies during
+  steady climbs.
 **Depends on:** trustworthy `h`/`v` (done); ToF (nice-to-have, step 1).
 **Size:** the meaty one — a full feature cycle.
 
@@ -67,6 +74,16 @@ is CV 8.37%, laptop-limited).
 ---
 
 ## Cross-cutting (before props-on hover)
+- **PID direction bench test (MANDATORY, 2 min, props off).** The FC's roll/pitch
+  sign convention is the *negation* of the hardware-validated `imu_debug.ino`
+  (`roll += gx·dt` + `atan2(ay, az)` vs `roll -= gx·dt` + `atan2(-ay, az)`). Each
+  is internally consistent, but if the FC's signs don't match the mixer, the PID
+  *amplifies* tilt instead of correcting it → instant flip on first takeoff.
+  Procedure: arm, throttle up a little, then
+  - tilt **right side down** → `mFR`/`mBR` must **rise** (and `mFL`/`mBL` fall);
+  - tilt **nose down** → `mFR`/`mFL` must **rise** (and `mBL`/`mBR` fall).
+  If either axis moves the wrong way, flip that axis's sign in
+  `updateOrientation()` (or the PID input) — do NOT fly until this passes.
 - A safe **tethered test rig** before any props-on flight attempt.
 - Battery/voltage monitoring + low-battery response.
 - Re-review arming/kill safety with props on.
