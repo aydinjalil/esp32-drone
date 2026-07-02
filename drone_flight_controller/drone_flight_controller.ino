@@ -326,32 +326,43 @@ bool preArmOK(){
   return level && still && sensorsOK && !killed;
 }
 
+// Command ack to every live control link (USB always; BT when a client is
+// connected). Commands can arrive over either link, so responses like
+// "ARM REFUSED" must be visible on both — a BT pilot gets no USB output.
+void ack(const char* msg){
+  Serial.println(msg);
+  if (SerialBT.hasClient()) SerialBT.println(msg);
+}
+
 // Handle one command character from any input stream (USB or Bluetooth).
 void handleCommand(char c){
+  char buf[32];
   if (c == 'a'){
     if (preArmOK()){
       takeoffGroundPressure = groundPressure;   // freeze altitude reference
       armed = true;
       manualThrottle = 0.0f;                    // always start at idle
-      Serial.println("ARMED");
+      ack("ARMED");
     } else {
-      Serial.println("ARM REFUSED (not level/still, or killed)");
+      ack("ARM REFUSED (not level/still, or killed)");
     }
   } else if (c == 'd'){
-    armed = false; manualThrottle = 0.0f; Serial.println("DISARMED");
+    armed = false; manualThrottle = 0.0f; ack("DISARMED");
   } else if (c == 'k'){
-    killed = true; armed = false; manualThrottle = 0.0f; Serial.println("KILL");
+    killed = true; armed = false; manualThrottle = 0.0f; ack("KILL");
   } else if (c == 'r'){
-    if (!armed){ killed = false; Serial.println("KILL RESET"); }
+    if (!armed){ killed = false; ack("KILL RESET"); }
   } else if (c == '+' || c == '='){
     manualThrottle = constrain(manualThrottle + THR_STEP, 0.0f, THR_MAX);
-    Serial.printf("THR %.2f\n", manualThrottle);
+    snprintf(buf, sizeof(buf), "THR %.2f", manualThrottle);
+    ack(buf);
   } else if (c == '-' || c == '_'){
     manualThrottle = constrain(manualThrottle - THR_STEP, 0.0f, THR_MAX);
-    Serial.printf("THR %.2f\n", manualThrottle);
+    snprintf(buf, sizeof(buf), "THR %.2f", manualThrottle);
+    ack(buf);
   } else if (c == '0' || c == ' '){
     manualThrottle = 0.0f;
-    Serial.println("THR 0 (idle)");
+    ack("THR 0 (idle)");
   }
 }
 
