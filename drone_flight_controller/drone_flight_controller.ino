@@ -91,6 +91,11 @@ float a_z = 0.0f;
 float pressure = 0.0f;
 float baroAlt = 0.0f;
 float groundPressure = 0.0f;
+// Timestamp of the last VALID baro read. If performReading() keeps failing,
+// baroAlt freezes at its last value — the Kalman update must not keep ingesting
+// that stale altitude as a fresh measurement.
+unsigned long lastBaroMs = 0;
+const unsigned long BARO_STALE_MS = 500;
 
 // ======================================================
 // SENSOR NOISE PARAMETERS (Kalman tuning)
@@ -475,6 +480,7 @@ void updateBarometer() {
     float ratio = pressure / groundPressure;
     baroAlt = 44330.0f * (1.0f - pow(ratio, 0.1903f));
   }
+  lastBaroMs = millis();   // baroAlt is fresh
 }
 
 // ================= SETUP =================
@@ -662,9 +668,11 @@ void loop() {
   // fall back to the barometer. kalmanUpdate() now also reduces the covariance.
   if (tofValid && tofAlt < 4.0f) {
     kalmanUpdate(tofAlt, R_tof);
-  } else {
+  } else if (millis() - lastBaroMs < BARO_STALE_MS) {
     kalmanUpdate(baroAlt, R_baro);
   }
+  // else: no fresh measurement — coast on the prediction (covariance grows,
+  // which is the honest state of knowledge) rather than re-ingest stale data.
 
   // Pilot inputs: manual serial throttle, self-level attitude (no RC yet)
   throttle     = manualThrottle;
