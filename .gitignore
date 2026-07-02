@@ -10,3 +10,8 @@
 
 # Claude Code local (machine-specific) settings
 .claude/settings.local.json
+
+# Frame render exports live on the drone-frame-design branch (and are ignored
+# there too as generated output of frame/export.sh). Keep the local copies but
+# out of firmware's status.
+frame/
