@@ -686,9 +686,14 @@ void loop() {
            motorFR, motorFL, motorBL, motorBR,
            tofValid ? tofAlt*1000 : -1);
   Serial.print(tbuf);
-  // Mirror telemetry to BT when a client is connected. (An earlier
-  // availableForWrite() >= len guard blocked ALL BT output on real hardware —
-  // that value is unreliable on this BluetoothSerial build. Revisit non-blocking
-  // via setTxBufferSize once BT is confirmed working.)
-  if (SerialBT.hasClient()) SerialBT.print(tbuf);
+  // Mirror telemetry to BT at 10 Hz (every 5th loop). SerialBT.print() blocks
+  // when the SPP link congests, and a blocked write stalls the whole control
+  // loop — 10 Hz keeps the pilot readout useful while cutting the data rate 5x
+  // so congestion is far less likely. (availableForWrite() can't be used as a
+  // guard: it reads unreliably on this BluetoothSerial build.)
+  static uint8_t btTelemDiv = 0;
+  if (++btTelemDiv >= 5) {
+    btTelemDiv = 0;
+    if (SerialBT.hasClient()) SerialBT.print(tbuf);
+  }
 }
