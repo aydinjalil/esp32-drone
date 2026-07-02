@@ -11,9 +11,6 @@
 #include <ESP32Servo.h>
 #include "BluetoothSerial.h"
 
-// Optional Sensor
-#include <Adafruit_SSD1306.h> // Display
-
 // ================= I2C =================
 #define XSHUT_PIN 4
 TwoWire I2Cdev = TwoWire(0);
@@ -77,7 +74,6 @@ float gravityMag = 9.81f;
 
 float roll = 0.0f;
 float pitch = 0.0f;
-float yaw = 0.0f;
 
 // ======================================================
 // GRAVITY-COMPENSATED ACCELERATION
@@ -108,7 +104,6 @@ float R_tof  = 0.005f; // ToF measurement noise (m^2; ~7cm std, tight/accurate)
 // ======================================================
 // SENSOR OBJECTS
 // ======================================================
-// Adafruit_MPU6050 mpu;
 Adafruit_ICM20948 imu;
 Adafruit_BMP5xx bmp;
 VL53L4CX tof(&I2Cdev, XSHUT_PIN);
@@ -133,7 +128,7 @@ float hoverThrottle = 0.55f; // Tune this for motors
 // Motor outputs (0.0 - 1.0 normalized)
 float motorFR = 0.0f, motorFL = 0.0f, motorBL = 0.0f, motorBR = 0.0f;
 
-// Pilot inputs (simulated - will replace with RC receiver)
+// Pilot inputs (driven by manual serial/BT throttle; RC receiver later)
 float throttle = 0.0f, target_roll = 0.0f, target_pitch = 0.0f;
 
 // Manual serial throttle (pilot-driven; no RC yet). Incremental + bounded so no
@@ -190,8 +185,8 @@ void updateOrientation() {
   float gx_corr = gx - bias_gx;
   float gy_corr = gy - bias_gy;
 
-  // Reject insane gyro
-  if (fabs(gx_corr) > 20 || fabs(gy_corr) > 20) return;
+  // Reject insane gyro (±500 dps range = 8.7 rad/s; anything above is garbage)
+  if (fabs(gx_corr) > 9.0f || fabs(gy_corr) > 9.0f) return;
     
   // integrate gyro (already bias corrected in loop)
   roll  += gx_corr * dt;
@@ -417,7 +412,11 @@ void detectDisarm(){
 // =========================
 float computeSafeThrottle(float  pilotThrottle){
   if(!armed || h < MAX_ALTITUDE) return pilotThrottle;
-  Serial.printf("CEILING HIT: %.1fm\n", h);
+  static unsigned long lastCeilingMsgMs = 0;   // 1/s, not 50/s
+  if (millis() - lastCeilingMsgMs > 1000){
+    lastCeilingMsgMs = millis();
+    Serial.printf("CEILING HIT: %.1fm\n", h);
+  }
   return hoverThrottle;
 }
 
@@ -438,10 +437,10 @@ float computeAttitudePID(float target, float current, float& integral, float& la
 // MOTOR MIXING (X configuration)
 // ==============================
 void motorMixing(float throttleInput, float rollPID, float pitchPID){
-  motorFR = constrain(throttleInput + 0.25 * rollPID - 0.25f * pitchPID, 0.0f, 1.0f);
-  motorFL = constrain(throttleInput - 0.25 * rollPID - 0.25f * pitchPID, 0.0f, 1.0f);
-  motorBL = constrain(throttleInput + 0.25 * rollPID + 0.25f * pitchPID, 0.0f, 1.0f);
-  motorBR = constrain(throttleInput - 0.25 * rollPID + 0.25f * pitchPID, 0.0f, 1.0f);
+  motorFR = constrain(throttleInput + 0.25f * rollPID - 0.25f * pitchPID, 0.0f, 1.0f);
+  motorFL = constrain(throttleInput - 0.25f * rollPID - 0.25f * pitchPID, 0.0f, 1.0f);
+  motorBL = constrain(throttleInput + 0.25f * rollPID + 0.25f * pitchPID, 0.0f, 1.0f);
+  motorBR = constrain(throttleInput - 0.25f * rollPID + 0.25f * pitchPID, 0.0f, 1.0f);
 }
 
 // =========================
@@ -495,7 +494,6 @@ void setup() {
   // -------------------------
   // I2C SETUP
   // -------------------------
-  // Wire.begin(SDA_PIN, SCL_PIN);
   pinMode(XSHUT_PIN, OUTPUT);
   digitalWrite(XSHUT_PIN, LOW); 
   delay(10);
@@ -519,15 +517,6 @@ void setup() {
     Serial.println("ToF absent — altitude from baro only");
   }
   
-  // // ESP32 safe stable clock
-  // Serial.println("I2C Scan:");
-  // for(byte addr=1; addr<127; addr++) {
-  //   I2Cdev.beginTransmission(addr);
-  //   if(I2Cdev.endTransmission() == 0) {
-  //     Serial.printf("Found: 0x%02X\n", addr);
-  //   }
-  // }
-
   // -------------------------
   // SENSOR INIT
   // -------------------------
