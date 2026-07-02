@@ -383,10 +383,23 @@ void checkBtFailsafe(){
   btWasConnected = nowConnected;
 }
 
+// Landing auto-disarm. Low ToF altitude + low vertical speed alone is NOT
+// proof of touchdown — a slow landing flare hovering through the 10-20 cm band
+// matches it and would cut motors mid-air. So additionally require near-idle
+// throttle (pilot has actually chopped power) and the whole condition to hold
+// for ~1 s before disarming.
+int landedCount = 0;
 void detectDisarm(){
-  if (armed && tofValid && tofAlt < 0.2f && fabs(v) < 0.05f){
-    armed = false; manualThrottle = 0.0f;
-    Serial.println("🚁 DISARMED - Auto-zero resume");
+  bool landed = armed && tofValid && tofAlt < 0.2f && fabs(v) < 0.05f
+                && manualThrottle < 0.1f;
+  if (landed){
+    if (++landedCount >= 50){   // ~1 s at 50 Hz
+      landedCount = 0;
+      armed = false; manualThrottle = 0.0f;
+      ack("DISARMED - landed");
+    }
+  } else {
+    landedCount = 0;
   }
 }
 
