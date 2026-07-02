@@ -148,6 +148,10 @@ Servo escFR, escFL, escBL, escBR;
 const int ESC_MIN_US  = 1000;   // disarmed / zero throttle
 const int ESC_SPAN_US = 900;    // 1000..1900
 
+// A dead IMU can read all-zeros, which pass the level/still pre-arm checks
+// (roll 0 looks "level"). Track init health explicitly and refuse arming on it.
+bool imuOK = false;
+
 // IMU I2C stall detection (see drone_imu/docs/ICM20948_STATUS.md)
 const int STALE_LIMIT = 20;     // ~0.4 s of frozen reads before re-init
 int staleCount = 0;
@@ -323,7 +327,7 @@ bool preArmOK(){
   bool level     = fabs(roll) < 0.17f && fabs(pitch) < 0.17f;            // ~10 deg
   bool still     = fabs(gx - bias_gx) < 0.5f && fabs(gy - bias_gy) < 0.5f;
   bool sensorsOK = isValidFloat(ax) && isValidFloat(az) && isValidFloat(roll);
-  return level && still && sensorsOK && !killed;
+  return imuOK && level && still && sensorsOK && !killed;
 }
 
 // Command ack to every live control link (USB always; BT when a client is
@@ -547,8 +551,9 @@ void setup() {
   Serial.printf("\n✅ Ground zero complete! %.2f hPa (%d samples)\n", groundPressure, pCount);
   zeroed = (pCount > 0);
 
-  if (!initIMU()) {
-    Serial.println("IMU FAIL");
+  imuOK = initIMU();
+  if (!imuOK) {
+    Serial.println("IMU FAIL — arming blocked");
   }
 
   // Gyro bias
@@ -632,7 +637,7 @@ void loop() {
       Serial.println("# IMU stall — disarm + idle + re-init");
       armed = false; manualThrottle = 0.0f;   // degraded mode: drop arm + throttle on sensor loss
       writeMotorsIdle();
-      initIMU();
+      imuOK = initIMU();                      // re-arm allowed only if re-init succeeds
       staleCount = 0;
     }
   } else {
