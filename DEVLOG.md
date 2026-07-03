@@ -1,14 +1,14 @@
-# ESP32-S3 Drone — Development Log
+# ESP32 Drone — Development Log
 
 ## Project Overview
 
-Altitude-hold drone flight controller running on an ESP32-S3 (QFN56, rev 0.2, 8 MB OPI PSRAM, 16 MB flash).  
+Altitude-hold drone flight controller running on a classic ESP32 DevKit (WROOM-32).  
 The goal is a sensor fusion stack that estimates altitude and orientation accurately enough to feed a PID flight controller.
 
 **Hardware**
 | Component | Part | Interface |
 |-----------|------|-----------|
-| MCU | ESP32-S3 (rev 0.2, 8 MB PSRAM) | — |
+| MCU | classic ESP32 DevKit (WROOM-32) | — |
 | IMU | ICM-20948 (accel + gyro + mag) | I2C (SDA=21, SCL=22) |
 | Barometer | BMP581 (BMP5xx) | I2C addr 0x47 |
 | TOF rangefinder | VL53L4CX | I2C addr 0x29, XSHUT=GPIO4 |
@@ -17,7 +17,7 @@ The goal is a sensor fusion stack that estimates altitude and orientation accura
 **Toolchain**
 - Arduino IDE (macOS) + arduino-cli bundled inside `Arduino IDE.app`
 - `esp32:esp32` core v3.1.0 (community) / `arduino:esp32` v2.0.18
-- FQBN used: `esp32:esp32:esp32s3`
+- Board: "ESP32 Dev Module" (`esp32:esp32:esp32`); flash over USB `/dev/cu.usbserial-0001` (never the BT port `/dev/cu.DRONE_FC`)
 
 ---
 
@@ -31,7 +31,7 @@ The goal is a sensor fusion stack that estimates altitude and orientation accura
 
 **Resolution:** Switched to the correct port. Upload succeeded immediately.
 
-**Lesson:** On ESP32-S3 boards with multiple USB ports, always verify you are using the UART/CH340 port for programming, not the native USB CDC port. On upload failure, **change the port first** before trying any esptool flags.
+**Lesson:** On upload failure, **change the port first** before trying any esptool flags. (Historical entry from early bring-up; on the current classic ESP32 DevKit the same class of failure recurred when the IDE port was set to the Bluetooth serial `/dev/cu.DRONE_FC` — flashing only works on the UART port `/dev/cu.usbserial-0001`.)
 
 ---
 
@@ -128,8 +128,8 @@ Full hardware bring-up session. Everything below was verified on the bench
 
 **Board correction:** this build runs on a **classic ESP32 DevKit (WROOM-32)**,
 NOT an ESP32-S3 — confirmed because the ESCs work on GPIO18/19/23/25 and GPIO25
-does not exist on the S3. The Project Overview header above predates this and
-should be read as classic ESP32 (SDA=21, SCL=22 still correct).
+does not exist on the S3. (The Project Overview header and other sections have
+since been corrected; SDA=21, SCL=22 were always correct.)
 
 **IMU I²C address is 0x69, not 0x68.** SDO/AD0 is wired to VCC. All sketches
 updated from `ICM20948_I2CADDR_DEFAULT` to a literal `0x69` (`imu_debug`,
@@ -199,7 +199,7 @@ loop()
 
 ## What Works
 
-- Compilation and upload via `arduino-cli` on `esp32:esp32:esp32s3`
+- Compilation and upload via Arduino IDE, board "ESP32 Dev Module" (`esp32:esp32:esp32`), port `/dev/cu.usbserial-0001`
 - BMP581 reading pressure in hPa via `bmp.performReading()` / `bmp.pressure`
 - ICM-20948 accel + gyro events via `imu.getEvent()`
 - ICM-20948 magnetometer via `imu.getMagnetometerSensor()->getEvent()`
@@ -233,7 +233,7 @@ loop()
 - **TOF I2C conflict:** VL53L4CX initialization is called unconditionally. If the sensor is absent or XSHUT wiring is wrong, I2C can be left in a bad state before BMP/IMU init. Should add a return-value check on `InitSensor()` and a fallback.
 - **ICM-20948 magnetometer interference:** The magnetometer on the ICM-20948 shares the die with the gyro. Motor/ESC EMI will corrupt readings significantly once motors are attached. May need an external magnetometer mounted away from power electronics.
 - **BMP581 airflow:** Barometer on a drone must be shielded from prop wash. Without a foam cover or pressure port, altitude readings will be noisy during flight.
-- **ESP32-S3 dual USB ports:** The board exposes both a CH340 UART port and a native USB CDC port. Picking the wrong one silently breaks uploads. No guard exists in the toolchain to catch this.
+- **Wrong serial port breaks uploads:** with Bluetooth paired, macOS exposes `/dev/cu.DRONE_FC` alongside the UART port `/dev/cu.usbserial-0001`. Selecting the BT port in the IDE silently breaks flashing ("No serial data received"). Always flash on the UART port.
 
 ### Software
 - **`dt` clamping loses real time:** When `dt > 0.05s` (20 Hz minimum), the Kalman filter resets dt to 10ms. If the loop genuinely runs slower than 20 Hz (e.g. during I2C blocking), the filter's time model is silently wrong.
@@ -277,7 +277,7 @@ loop()
 ### Phase 5 — Flight controller integration
 - [ ] PID controller for altitude hold using `h` and `v` from Kalman filter
 - [ ] PID for roll/pitch stabilization
-- [ ] ESC PWM output (likely LEDC or MCPWM on ESP32-S3)
+- [x] ESC PWM output (ESP32Servo, GPIO 18/19/23/25, 1000–1900 µs)
 - [ ] RC receiver input (SBUS / PPM / ELRS)
 - [ ] Arm/disarm logic with failsafe
 
