@@ -74,16 +74,27 @@ is CV 8.37%, laptop-limited).
 ---
 
 ## Cross-cutting (before props-on hover)
-- **PID direction bench test (MANDATORY, 2 min, props off).** The FC's roll/pitch
-  sign convention is the *negation* of the hardware-validated `imu_debug.ino`
-  (`roll += gx·dt` + `atan2(ay, az)` vs `roll -= gx·dt` + `atan2(-ay, az)`). Each
-  is internally consistent, but if the FC's signs don't match the mixer, the PID
-  *amplifies* tilt instead of correcting it → instant flip on first takeoff.
-  Procedure: arm, throttle up a little, then
-  - tilt **right side down** → `mFR`/`mBR` must **rise** (and `mFL`/`mBL` fall);
-  - tilt **nose down** → `mFR`/`mFL` must **rise** (and `mBL`/`mBR` fall).
-  If either axis moves the wrong way, flip that axis's sign in
-  `updateOrientation()` (or the PID input) — do NOT fly until this passes.
+- **PID direction bench test (MANDATORY, 2 min, props off).** Two reasons:
+  1. **FIXED 2026-07-03 — mixer roll column was a diagonal.** `motorMixing()` had
+     roll on FR+BL vs FL+BR, which sums to ZERO net roll moment (pure yaw torque
+     instead) — no roll authority at any PID sign. Corrected to left/right pairs
+     (right = FR+BR gets `+rollPID`). The fix must be verified on hardware.
+  2. The FC's roll/pitch sign convention is the *negation* of the hardware-
+     validated `imu_debug.ino` (`roll += gx·dt` + `atan2(ay, az)` vs `roll -=
+     gx·dt` + `atan2(-ay, az)`). Whether the PID corrects or amplifies tilt
+     depends on physical IMU mounting — only the bench can settle it.
+  Procedure (USB or BT telemetry, props OFF):
+  - **Step A — estimator direction (disarmed):** tilt right side down, note the
+    sign of `r:` in telemetry; tilt nose down, note the sign of `p:`. Record both.
+  - **Step B — motor response (armed, small throttle, e.g. `t` a few times):**
+    - tilt **right side down** → `mFR` **and** `mBR` must both **rise** (and
+      `mFL`/`mBL` both fall). If the left pair rises instead → flip the roll
+      sign (negate the `rollPID` column in `motorMixing()`). If FR and BR move
+      in *opposite* directions, the mixer is still wrong — stop and re-check.
+    - tilt **nose down** → `mFR` **and** `mFL` must both **rise** (and
+      `mBL`/`mBR` both fall). If the back pair rises instead → flip the pitch
+      sign (negate the `pitchPID` column).
+  Do NOT fly until both axes pass with pair-wise (not diagonal) motion.
 - A safe **tethered test rig** before any props-on flight attempt.
 - Battery/voltage monitoring + low-battery response.
 - Re-review arming/kill safety with props on.
