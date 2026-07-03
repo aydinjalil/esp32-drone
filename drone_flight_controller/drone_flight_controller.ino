@@ -436,11 +436,15 @@ float computeAttitudePID(float target, float current, float& integral, float& la
 // ==============================
 // MOTOR MIXING (X configuration)
 // ==============================
+// Invariant: roll term must have the SAME sign on both right motors (FR, BR)
+// and the opposite sign on both left motors; pitch term same sign on both
+// front motors. A diagonal roll pattern (FR+BL vs FL+BR) sums to ZERO net
+// roll moment and injects pure yaw torque instead — no roll authority at all.
 void motorMixing(float throttleInput, float rollPID, float pitchPID){
   motorFR = constrain(throttleInput + 0.25f * rollPID - 0.25f * pitchPID, 0.0f, 1.0f);
   motorFL = constrain(throttleInput - 0.25f * rollPID - 0.25f * pitchPID, 0.0f, 1.0f);
-  motorBL = constrain(throttleInput + 0.25f * rollPID + 0.25f * pitchPID, 0.0f, 1.0f);
-  motorBR = constrain(throttleInput - 0.25f * rollPID + 0.25f * pitchPID, 0.0f, 1.0f);
+  motorBL = constrain(throttleInput - 0.25f * rollPID + 0.25f * pitchPID, 0.0f, 1.0f);
+  motorBR = constrain(throttleInput + 0.25f * rollPID + 0.25f * pitchPID, 0.0f, 1.0f);
 }
 
 // =========================
