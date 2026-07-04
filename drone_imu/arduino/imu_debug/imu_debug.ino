@@ -1,8 +1,15 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ICM20948.h>
+#include "BluetoothSerial.h"
 
 Adafruit_ICM20948 imu;
+
+// Mirror the CSV stream over Bluetooth (same DRONE_FC name/pairing as the FC)
+// so attitude can be verified with imu_view_csv.py --port /dev/cu.DRONE_FC
+// while the drone runs untethered on battery, away from the laptop's magnetic
+// field — the condition the flight-config mag cal was made for.
+BluetoothSerial SerialBT;
 
 // State (radians)
 float roll  = 0.0f;
@@ -56,6 +63,8 @@ bool initIMU() {
 void setup() {
   Serial.begin(115200);
   delay(2000);
+
+  SerialBT.begin("DRONE_FC");
 
   Wire.begin(21, 22);
   Wire.setClock(100000);
@@ -218,7 +227,8 @@ void loop() {
 
   unsigned long t_ms = millis();
 
-  Serial.printf(
+  char line[128];
+  snprintf(line, sizeof(line),
     "%lu,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.4f,%.4f\n",
     t_ms,
     roll_deg,
@@ -229,6 +239,15 @@ void loop() {
     gz,
     dt
   );
+  Serial.print(line);
+
+  // BT at ~33 Hz (every 3rd line): plenty for the visualizer, and low enough
+  // that a congested SPP link can't stall the loop for long.
+  static uint8_t btDiv = 0;
+  if (++btDiv >= 3) {
+    btDiv = 0;
+    if (SerialBT.hasClient()) SerialBT.print(line);
+  }
 
   delay(10);
 }

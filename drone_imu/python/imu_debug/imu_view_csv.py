@@ -1,3 +1,5 @@
+import argparse
+
 import serial
 import threading
 import numpy as np
@@ -5,7 +7,14 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-PORT = '/dev/cu.usbserial-0001'
+# Default is the USB flashing port; for untethered viewing (imu_debug.ino
+# mirrors its CSV over Bluetooth) pass:  --port /dev/cu.DRONE_FC
+_ap = argparse.ArgumentParser(description="3D attitude visualizer for imu_debug.ino CSV")
+_ap.add_argument("--port", default="/dev/cu.usbserial-0001",
+                 help="serial port (USB: /dev/cu.usbserial-0001, BT: /dev/cu.DRONE_FC)")
+_args = _ap.parse_args()
+
+PORT = _args.port
 BAUD = 115200
 
 # Display-only orientation conventions. These map the firmware's reported angles
