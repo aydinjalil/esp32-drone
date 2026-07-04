@@ -705,9 +705,13 @@ void loop() {
   target_roll  = 0.0f;
   target_pitch = 0.0f;
 
-  // CONTROL + MOTOR OUTPUT — only when armed and not killed.
+  // CONTROL + MOTOR OUTPUT — only when armed, not killed, and throttle is up.
+  // The zero-throttle gate matters: without it the attitude PID keeps driving
+  // the motors (up to 0.25 differential) at idle stick — observed 2026-07-04
+  // when a tumbled-but-armed drone lay on its side with props bursting for
+  // seconds after the pilot chopped throttle.
   float safeThrottle = 0.0f;
-  if (armed && !killed) {
+  if (armed && !killed && manualThrottle >= 0.02f) {
     float rollPID  = computeAttitudePID(target_roll,  roll,  gx - bias_gx, errI_roll);
     float pitchPID = computeAttitudePID(target_pitch, pitch, gy - bias_gy, errI_pitch);
 
@@ -722,7 +726,7 @@ void loop() {
     escBL.writeMicroseconds(ESC_MIN_US + (int)(ESC_SPAN_US * motorBL));
     escBR.writeMicroseconds(ESC_MIN_US + (int)(ESC_SPAN_US * motorBR));
   } else {
-    // Disarmed / killed: motors idle, reset PID integrators (prevent windup)
+    // Disarmed / killed / zero throttle: motors idle, reset PID integrators
     errI_roll = errI_pitch = 0.0f;
     motorFR = motorFL = motorBL = motorBR = 0.0f;
     writeMotorsIdle();
