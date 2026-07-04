@@ -141,11 +141,12 @@ const float THR_STEP = 0.02f;    // 2% per keypress
 const float THR_MAX  = 0.75f;    // early-test ceiling; raise after validation
 
 // Attitude PID. Tunable live over serial/BT (p/P, i/I, x/X keys, g to print)
-// so a tether tuning session doesn't need a reflash per iteration. Started at
-// Kp=1.5/Kd=0.2 — visibly oscillated on the tether before liftoff (2026-07-04),
-// so defaults lowered; tune up from stable, not down from shaking.
-float Kp = 1.0f, Ki = 0.05f, Kd = 0.1f;
-float errI_roll = 0, errI_pitch = 0, lastErr_roll = 0, lastErr_pitch = 0;
+// so a tether tuning session doesn't need a reflash per iteration.
+// Defaults from the 2026-07-04 tether logs: calmest sustained behavior was
+// Kp~1.0 / Kd~0.14 (angle-derivative D); Kd below ~0.10 visibly under-damped.
+// Kd now acts on the raw gyro rate (see computeAttitudePID) — same scale.
+float Kp = 1.0f, Ki = 0.05f, Kd = 0.14f;
+float errI_roll = 0, errI_pitch = 0;
 
 // ESC objects
 Servo escFR, escFL, escBL, escBR;
@@ -444,13 +445,16 @@ float computeSafeThrottle(float  pilotThrottle){
 // =========================
 // ATTITUDE PID
 // =========================
-float computeAttitudePID(float target, float current, float& integral, float& lastError){
+// D-term uses the gyro rate directly instead of differentiating the
+// complementary-filtered angle: d(error)/dt = -d(angle)/dt = -rate when the
+// target is constant. The gyro measures rate natively — no numeric-diff noise
+// from the accel component and no filter lag. Tether logs (2026-07-04) showed
+// the angle-derivative D couldn't damp the 2-3 Hz near-liftoff wobble.
+float computeAttitudePID(float target, float current, float rate, float& integral){
   float error = target * PI/180.0f - current; // Degrees to radians
   integral += error * dt;
   integral = constrain(integral, -0.5f, 0.5f); //Anti-windup
-  float derivative = (dt > 1e-6f) ? (error - lastError) / dt : 0.0f; // guard /0
-  lastError = error;
-  float out = Kp * error + Ki * integral + Kd * derivative;
+  float out = Kp * error + Ki * integral - Kd * rate;
   return isValidFloat(out) ? out : 0.0f;
 }
 
@@ -704,8 +708,8 @@ void loop() {
   // CONTROL + MOTOR OUTPUT — only when armed and not killed.
   float safeThrottle = 0.0f;
   if (armed && !killed) {
-    float rollPID  = computeAttitudePID(target_roll,  roll,  errI_roll,  lastErr_roll);
-    float pitchPID = computeAttitudePID(target_pitch, pitch, errI_pitch, lastErr_pitch);
+    float rollPID  = computeAttitudePID(target_roll,  roll,  gx - bias_gx, errI_roll);
+    float pitchPID = computeAttitudePID(target_pitch, pitch, gy - bias_gy, errI_pitch);
 
     // Fault guard: never push NaN/inf into the mixer/ESCs
     if (!isValidFloat(rollPID) || !isValidFloat(pitchPID)) { rollPID = 0.0f; pitchPID = 0.0f; }
@@ -720,7 +724,6 @@ void loop() {
   } else {
     // Disarmed / killed: motors idle, reset PID integrators (prevent windup)
     errI_roll = errI_pitch = 0.0f;
-    lastErr_roll = lastErr_pitch = 0.0f;
     motorFR = motorFL = motorBL = motorBR = 0.0f;
     writeMotorsIdle();
   }
