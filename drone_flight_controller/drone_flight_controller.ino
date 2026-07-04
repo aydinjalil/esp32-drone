@@ -12,7 +12,10 @@
 #include "BluetoothSerial.h"
 
 // ================= I2C =================
-#define XSHUT_PIN 4
+// ToF XSHUT is physically wired to GPIO2. CAUTION: GPIO2 is a boot-strap pin
+// (must be low/floating to enter the serial bootloader) — if the breakout's
+// XSHUT pull-up ever makes uploads fail, move the wire + this define to GPIO4.
+#define XSHUT_PIN 2
 TwoWire I2Cdev = TwoWire(0);
 
 // PINS
@@ -515,8 +518,12 @@ void setup() {
   // InitSensor returns a status; if the sensor is absent it errors and we just
   // leave tofPresent=false so the loop skips ToF and the Kalman uses baro.
   tof.begin();
-  tof.VL53L4CX_SetDeviceAddress(0x29);
-  if (tof.InitSensor(0x29) == VL53L4CX_ERROR_NONE) {
+  // ST's VL53L4CX API takes 8-bit I2C addresses (it writes address/2 to the
+  // device's address register). 0x52 is the power-on default and scans as
+  // 0x29 in 7-bit. Passing 7-bit 0x29 here silently moved the sensor to
+  // 0x14 (0x29/2) — confirmed live on the bus with i2c_scan. InitSensor()
+  // toggles XSHUT itself, so no separate SetDeviceAddress call beforehand.
+  if (tof.InitSensor(0x52) == VL53L4CX_ERROR_NONE) {
     tof.VL53L4CX_StartMeasurement();
     tofPresent = true;
     Serial.println("ToF OK");

@@ -11,7 +11,7 @@ The goal is a sensor fusion stack that estimates altitude and orientation accura
 | MCU | classic ESP32 DevKit (WROOM-32) | — |
 | IMU | ICM-20948 (accel + gyro + mag) | I2C (SDA=21, SCL=22) |
 | Barometer | BMP581 (BMP5xx) | I2C addr 0x47 |
-| TOF rangefinder | VL53L4CX | I2C addr 0x29, XSHUT=GPIO4 |
+| TOF rangefinder | VL53L4CX | I2C addr 0x29, XSHUT=GPIO2 (strap pin — see FC source note) |
 | Display (optional) | SSD1306 | I2C |
 
 **Toolchain**
