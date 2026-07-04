@@ -13,7 +13,11 @@
 //    All ESC grounds MUST be common with the ESP32 GND.
 //    ESP32 powered from PDB 5V BEC -> VIN/5V pin (NOT 3V3).
 //
-//  Serial Monitor: 115200 baud, line ending "Newline" or "No line ending".
+//  Control works over USB Serial (115200) OR Bluetooth ("DRONE_FC", e.g.
+//  `screen /dev/cu.DRONE_FC` on macOS). BT is the normal path for powered
+//  motor tests: the battery must feed the PDB, and battery + USB at the same
+//  time causes power contention (one source only).
+//
 //  Commands (send a single character):
 //    1 = Front Right   2 = Front Left   3 = Back Left   4 = Back Right
 //    a = arm ESCs (run once after power-up / ESC beeps)
@@ -24,6 +28,7 @@
 // ============================================================================
 
 #include <ESP32Servo.h>
+#include "BluetoothSerial.h"
 
 // --- ESC signal pins (classic ESP32, output-safe GPIOs) ---
 #define ESC_FR 18   // Front Right
@@ -32,6 +37,7 @@
 #define ESC_BR 25   // Back Right
 
 Servo escFR, escFL, escBL, escBR;
+BluetoothSerial SerialBT;
 
 // --- ESC pulse range (us) — same as the flight controller ---
 const int ESC_MIN_US  = 1000;   // disarmed / zero throttle
@@ -48,6 +54,21 @@ const unsigned long SPIN_MS = 1500;  // how long a single-motor test runs
 
 bool armed = false;
 
+// All messages go to USB and, when a client is connected, to Bluetooth.
+void out(const char *s) {
+  Serial.print(s);
+  if (SerialBT.hasClient()) SerialBT.print(s);
+}
+
+void outf(const char *fmt, ...) {
+  char buf[128];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buf, sizeof(buf), fmt, args);
+  va_end(args);
+  out(buf);
+}
+
 void allIdle() {
   escFR.writeMicroseconds(ESC_MIN_US);
   escFL.writeMicroseconds(ESC_MIN_US);
@@ -56,7 +77,7 @@ void allIdle() {
 }
 
 void armEscs() {
-  Serial.println(F("Arming ESCs (ramp 1000 -> 1100us)..."));
+  out("Arming ESCs (ramp 1000 -> 1100us)...\n");
   for (int i = ESC_MIN_US; i <= ESC_ARM_US; i++) {
     escFR.writeMicroseconds(i); escFL.writeMicroseconds(i);
     escBL.writeMicroseconds(i); escBR.writeMicroseconds(i);
@@ -64,32 +85,34 @@ void armEscs() {
   }
   allIdle();
   armed = true;
-  Serial.println(F("ESCs armed. Motors idle. Send 1-4 to spin a motor."));
+  out("ESCs armed. Motors idle. Send 1-4 to spin a motor.\n");
 }
 
 // Spin exactly one motor at testUs for SPIN_MS, then stop it.
 void spinOne(Servo &esc, const char *name) {
-  if (!armed) { Serial.println(F("Not armed — send 'a' first.")); return; }
+  if (!armed) { out("Not armed — send 'a' first.\n"); return; }
   allIdle();                       // guarantee the other three stay stopped
-  Serial.printf("Spinning %s at %dus for %lums...\n", name, testUs, SPIN_MS);
+  outf("Spinning %s at %dus for %lums...\n", name, testUs, SPIN_MS);
   esc.writeMicroseconds(testUs);
   delay(SPIN_MS);
   esc.writeMicroseconds(ESC_MIN_US);
-  Serial.printf("%s stopped.\n", name);
+  outf("%s stopped.\n", name);
 }
 
 void printMenu() {
-  Serial.println(F("\n=== MOTOR TEST — PROPS OFF! ==="));
-  Serial.println(F(" 1=FrontRight  2=FrontLeft  3=BackLeft  4=BackRight"));
-  Serial.println(F(" a=arm   s=STOP all   +=throttle up   -=throttle down"));
-  Serial.println(F(" t=test all in sequence   ?=menu"));
-  Serial.printf (" test throttle = %dus (range %d..%d)\n", testUs, TEST_MIN, TEST_MAX);
-  Serial.println(F("================================"));
+  out("\n=== MOTOR TEST — PROPS OFF! ===\n");
+  out(" 1=FrontRight  2=FrontLeft  3=BackLeft  4=BackRight\n");
+  out(" a=arm   s=STOP all   +=throttle up   -=throttle down\n");
+  out(" t=test all in sequence   ?=menu\n");
+  outf(" test throttle = %dus (range %d..%d)\n", testUs, TEST_MIN, TEST_MAX);
+  out("================================\n");
 }
 
 void setup() {
   Serial.begin(115200);
   delay(300);
+
+  SerialBT.begin("DRONE_FC");   // same name/pairing as the flight controller
 
   // ESP32Servo housekeeping + 50Hz servo PWM for the ESCs
   ESP32PWM::allocateTimer(0);
@@ -106,15 +129,18 @@ void setup() {
 
   allIdle();   // hold low so ESCs see a valid disarm signal at boot
 
-  Serial.println(F("\n*** REMOVE ALL PROPELLERS BEFORE PROCEEDING ***"));
-  Serial.println(F("Holding all ESCs at 1000us (disarmed)."));
-  Serial.println(F("Wait for the ESC startup beeps, then send 'a' to arm."));
+  out("\n*** REMOVE ALL PROPELLERS BEFORE PROCEEDING ***\n");
+  out("Holding all ESCs at 1000us (disarmed).\n");
+  out("Wait for the ESC startup beeps, then send 'a' to arm.\n");
   printMenu();
 }
 
 void loop() {
-  if (!Serial.available()) return;
-  char c = Serial.read();
+  char c;
+  if (Serial.available())        c = Serial.read();
+  else if (SerialBT.available()) c = SerialBT.read();
+  else return;
+
   switch (c) {
     case '1': spinOne(escFR, "Front Right (GPIO18)"); break;
     case '2': spinOne(escFL, "Front Left  (GPIO19)"); break;
@@ -123,15 +149,15 @@ void loop() {
     case 'a': case 'A': armEscs(); break;
     case 's': case 'S':
       allIdle();
-      Serial.println(F("STOP — all motors idle."));
+      out("STOP — all motors idle.\n");
       break;
     case '+': case '=':
       testUs = min(testUs + TEST_STEP, TEST_MAX);
-      Serial.printf("test throttle = %dus\n", testUs);
+      outf("test throttle = %dus\n", testUs);
       break;
     case '-': case '_':
       testUs = max(testUs - TEST_STEP, TEST_MIN);
-      Serial.printf("test throttle = %dus\n", testUs);
+      outf("test throttle = %dus\n", testUs);
       break;
     case 't': case 'T':
       spinOne(escFR, "Front Right (GPIO18)"); delay(400);
@@ -142,7 +168,12 @@ void loop() {
     case '?': printMenu(); break;
     case '\n': case '\r': break;   // ignore line endings
     default:
-      Serial.printf("Unknown command '%c' — send ? for menu.\n", c);
+      outf("Unknown command '%c' — send ? for menu.\n", c);
       break;
   }
 }
+
+// ============================================================================
+// VERIFIED SPIN DIRECTIONS (bench, 2026-06-29) — standard "props-in" X-quad
+// (FR=CCW, FL=CW, BL=CCW, BR=CW). Props: CCW→FR&BL, CW→FL&BR.
+// ============================================================================
