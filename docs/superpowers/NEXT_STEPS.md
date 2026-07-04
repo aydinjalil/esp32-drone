@@ -95,6 +95,15 @@ is CV 8.37%, laptop-limited).
       `mBL`/`mBR` both fall). If the back pair rises instead → flip the pitch
       sign (negate the `pitchPID` column).
   Do NOT fly until both axes pass with pair-wise (not diagonal) motion.
+
+  **Results 2026-07-03 (props off, on hardware):**
+  - Step A: right side down → `r` **+**; nose down → `p` **+** (estimator
+    convention recorded in the `motorMixing()` comment).
+  - Step B: pitch PASSED (nose down → FR+FL rise; nose up → back pair rises).
+    Roll was pair-wise (mixer de-diagonalization verified) but REVERSED —
+    right-down raised the left pair → flipped the `rollPID` column sign.
+  - **Remaining: re-run the roll check** after the sign flip: right side down →
+    `mFR` and `mBR` must rise. Pitch needs no re-test.
 - A safe **tethered test rig** before any props-on flight attempt.
 - Battery/voltage monitoring + low-battery response.
 - Re-review arming/kill safety with props on.

@@ -440,11 +440,15 @@ float computeAttitudePID(float target, float current, float& integral, float& la
 // and the opposite sign on both left motors; pitch term same sign on both
 // front motors. A diagonal roll pattern (FR+BL vs FL+BR) sums to ZERO net
 // roll moment and injects pure yaw torque instead — no roll authority at all.
+//
+// Signs bench-validated 2026-07-03 (props off): estimator reads roll+ when
+// right side is down, pitch+ when nose is down; with error = target - angle,
+// tilting right-down raises FR+BR and nose-down raises FR+FL.
 void motorMixing(float throttleInput, float rollPID, float pitchPID){
-  motorFR = constrain(throttleInput + 0.25f * rollPID - 0.25f * pitchPID, 0.0f, 1.0f);
-  motorFL = constrain(throttleInput - 0.25f * rollPID - 0.25f * pitchPID, 0.0f, 1.0f);
-  motorBL = constrain(throttleInput - 0.25f * rollPID + 0.25f * pitchPID, 0.0f, 1.0f);
-  motorBR = constrain(throttleInput + 0.25f * rollPID + 0.25f * pitchPID, 0.0f, 1.0f);
+  motorFR = constrain(throttleInput - 0.25f * rollPID - 0.25f * pitchPID, 0.0f, 1.0f);
+  motorFL = constrain(throttleInput + 0.25f * rollPID - 0.25f * pitchPID, 0.0f, 1.0f);
+  motorBL = constrain(throttleInput + 0.25f * rollPID + 0.25f * pitchPID, 0.0f, 1.0f);
+  motorBR = constrain(throttleInput - 0.25f * rollPID + 0.25f * pitchPID, 0.0f, 1.0f);
 }
 
 // =========================
