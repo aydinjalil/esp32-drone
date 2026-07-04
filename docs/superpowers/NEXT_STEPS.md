@@ -32,6 +32,13 @@ altitude signal that altitude-hold (step 2) depends on near the ground.
   real distance and `tofPresent`/`tofValid` behave.
 - Confirm the Kalman uses ToF when valid (<4 m) and falls back to baro otherwise.
 **Size:** ~1 short session. No brainstorm needed (integration, not new design).
+**Status 2026-07-03: WORKING.** Two bugs found and fixed: (a) ST's VL53L4CX API
+takes 8-bit addresses — passing 7-bit 0x29 had silently moved the sensor to
+0x14; now uses the 0x52 default; (b) XSHUT was soldered to D2 (strap pin)
+while code drove GPIO4. Verified measuring correctly with code on pin 2.
+**Remaining:** resolder XSHUT to D4 (code already points at GPIO4), reflash,
+re-confirm `ToF OK` + live `tof:` readings, then check the Kalman prefers ToF
+under 4 m (`h:` tracking when raising/lowering).
 
 ### 2. Real altitude-hold controller — the main feature
 **Goal:** auto-throttle to hold altitude using the validated `h`/`v`, as a *mode*
