@@ -102,8 +102,10 @@ is CV 8.37%, laptop-limited).
   - Step B: pitch PASSED (nose down → FR+FL rise; nose up → back pair rises).
     Roll was pair-wise (mixer de-diagonalization verified) but REVERSED —
     right-down raised the left pair → flipped the `rollPID` column sign.
-  - **Remaining: re-run the roll check** after the sign flip: right side down →
-    `mFR` and `mBR` must rise. Pitch needs no re-test.
+  - Roll re-test after the sign flip: right side down → FR+BR rise, left pair
+    drops; left side down → the opposite. **PASSED.**
+  - **STATUS: COMPLETE 2026-07-03 — both axes correct on hardware.** Attitude
+    PID direction is verified; this item no longer blocks props-on testing.
 - A safe **tethered test rig** before any props-on flight attempt.
 - Battery/voltage monitoring + low-battery response.
 - Re-review arming/kill safety with props on.
