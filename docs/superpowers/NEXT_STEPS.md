@@ -77,11 +77,12 @@ failsafe state machine, arming safety review.
 **Goal:** the FC currently has NO yaw fusion or yaw mixing. Add both.
 **Involves:** port the calibrated-mag + tilt-comp heading from `imu_debug.ino` into
 the FC (0x69, negate-Y remap, beta fusion), add a yaw term to `motorMixing()`, and
-a yaw PID. Recalibrate mag in final flight config (away from laptop — current cal
-is CV 8.37%, laptop-limited). Tooling ready 2026-07-03: flash
-`drone_imu/arduino/mag_capture_bt/mag_capture_bt.ino`, battery power, then
-`python mag_calibration.py --port /dev/cu.DRONE_FC` and walk the drone away;
-fit with `mag_calibrate.py mag_log.csv --plot` as before.
+a yaw PID. Mag recalibration in flight config: **DONE 2026-07-04** via the BT
+capture workflow (`mag_capture_bt.ino` + `mag_calibration.py --port
+/dev/cu.DRONE_FC`) — CV 8.3%, constants installed in imu_debug /
+advanced_sensor_integration / ICM20948_STATUS. ~8% is this airframe's floor
+with power on (continuous current-loop interference, not ESC beeps). Redo the
+sweep after any battery/wiring layout change — the hard-iron offset shifts.
 
 ---
 
