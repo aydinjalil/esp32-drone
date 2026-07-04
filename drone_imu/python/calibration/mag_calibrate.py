@@ -63,6 +63,42 @@ def load_csv(path):
             f"Need at least ~100 valid samples for a stable fit; got "
             f"{0 if data.size == 0 else data.shape[0]}. Capture more data."
         )
+    return clean_samples(data)
+
+
+def clean_samples(data):
+    """Reject corrupted samples before fitting.
+
+    Serial/BT captures can splice lines when bytes are dropped (e.g. a lost
+    decimal point turns -50.55 into -5055, or two samples merge into one).
+    The algebraic ellipsoid fit has zero outlier robustness — a handful of
+    such points flips it into a hyperboloid ("non-positive eigenvalues").
+
+    Two stages:
+      1. Physical bounds: any real Earth-field sample has 5 < |m| < 150 uT.
+      2. Robust radial trim: iteratively drop points whose distance from the
+         (median) centre is a >4-sigma MAD outlier — catches spliced samples
+         whose fields are individually plausible but off the ellipsoid shell.
+    """
+    n0 = len(data)
+    mag = np.linalg.norm(data, axis=1)
+    data = data[(mag > 5.0) & (mag < 150.0) & (np.abs(data) < 200.0).all(axis=1)]
+
+    for _ in range(5):
+        centre = np.median(data, axis=0)
+        r = np.linalg.norm(data - centre, axis=1)
+        med = np.median(r)
+        mad = np.median(np.abs(r - med))
+        if mad == 0:
+            break
+        keep = np.abs(r - med) < 4.0 * 1.4826 * mad
+        if keep.all():
+            break
+        data = data[keep]
+
+    dropped = n0 - len(data)
+    if dropped:
+        print(f"Rejected {dropped} corrupted/outlier samples ({n0} -> {len(data)})")
     return data
 
 

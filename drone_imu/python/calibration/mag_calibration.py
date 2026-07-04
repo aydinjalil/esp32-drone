@@ -65,9 +65,19 @@ xyPlot.addItem(xyScatter)
 yzPlot.addItem(yzScatter)
 xzPlot.addItem(xzScatter)
 
+# Any real Earth-field sample is well inside this bound (uT). Values above it
+# are transmission corruption (e.g. a lost decimal point turning -50.55 into
+# -5055) and must never reach the plot or the log.
+MAG_MAX_VALID = 150.0
+
 def updatePlot():
 	global xRaw, yRaw, zRaw
-	if ser.in_waiting > 0:
+	# Drain EVERYTHING available each tick. The sketch streams ~50 lines/s but
+	# this timer fires at 20 Hz — reading a single line per tick (the old
+	# behavior) guarantees the OS buffer overflows and drops bytes mid-line,
+	# splicing samples together and corrupting the calibration data.
+	dirty = False
+	while ser.in_waiting > 0:
 		try:
 			line = ser.readline().decode('utf-8').strip()
 			print(line)
@@ -78,24 +88,27 @@ def updatePlot():
 				y = float(values[1])
 				z = float(values[2])
 
-				# Drop stalled/invalid reads so they never reach the
-				# plot or the calibration log.
-				if (x * x + y * y + z * z) < (MAG_MIN_VALID * MAG_MIN_VALID):
-					return
+				# Drop stalled/invalid reads and corrupted out-of-range
+				# values so they never reach the plot or the log.
+				m2 = x * x + y * y + z * z
+				if m2 < (MAG_MIN_VALID * MAG_MIN_VALID) or m2 > (MAG_MAX_VALID * MAG_MAX_VALID):
+					continue
 
 				xRaw = np.append(xRaw, x)[-maxPoints:]
 				yRaw = np.append(yRaw, y)[-maxPoints:]
 				zRaw = np.append(zRaw, z)[-maxPoints:]
 
 				log_file.write(f"{x},{y},{z}\n")
-				log_file.flush()
-
-				xyScatter.setData(x=xRaw, y=yRaw, brush=pg.mkBrush(0, 0, 255, 120))
-				yzScatter.setData(x=yRaw, y=zRaw, brush=pg.mkBrush(0, 255, 0, 120))
-				xzScatter.setData(x=xRaw, y=zRaw, brush=pg.mkBrush(255, 0, 0, 120))
+				dirty = True
 
 		except Exception as e:
 			print("Parse Error: ", e)
+
+	if dirty:
+		log_file.flush()
+		xyScatter.setData(x=xRaw, y=yRaw, brush=pg.mkBrush(0, 0, 255, 120))
+		yzScatter.setData(x=yRaw, y=zRaw, brush=pg.mkBrush(0, 255, 0, 120))
+		xzScatter.setData(x=xRaw, y=zRaw, brush=pg.mkBrush(255, 0, 0, 120))
 
 plotTimer = QtCore.QTimer()
 plotTimer.timeout.connect(updatePlot)
