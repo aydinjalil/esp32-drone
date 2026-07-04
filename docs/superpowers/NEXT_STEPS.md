@@ -119,6 +119,11 @@ sweep after any battery/wiring layout change — the hard-iron offset shifts.
     drops; left side down → the opposite. **PASSED.**
   - **STATUS: COMPLETE 2026-07-03 — both axes correct on hardware.** Attitude
     PID direction is verified; this item no longer blocks props-on testing.
+- **Motor spin directions re-verified 2026-07-04** (over BT — motor_test is now
+  BT-controlled since powered tests can't share USB with the battery): BL had
+  reversed after the battery/ToF re-soldering; fixed by swapping two phase
+  wires. Final: FR=CCW, FL=CW, BL=CCW, BR=CW → CCW props on FR+BL, CW on
+  FL+BR. Re-run this 2-minute check after ANY harness soldering.
 - A safe **tethered test rig** before any props-on flight attempt.
 - Battery/voltage monitoring + low-battery response.
 - Re-review arming/kill safety with props on.
