@@ -21,16 +21,19 @@ float dt = 0.01f;
 // Magnetometer hard-iron offset and soft-iron matrix (native sensor frame).
 // Calibrated sample:  m_cal = MAG_A * (m_raw - MAG_B)
 // Generate these with python/calibration/mag_calibrate.py and paste the output
-// here. Values below are from the ON-DRONE capture (2026-06-30, 11045 samples,
-// axis ratio 1.17, off-diagonal 4.0%, CV 8.37%) -- near-spherical. Residual CV
-// likely from laptop proximity during capture; recapture farther from metal for
-// flight-grade heading.
-const float MAG_B[3] = { -7.4741f, 24.7962f, -20.4835f };
+// here. Values below are from the FLIGHT-CONFIG capture (2026-07-04, 18.9k
+// samples streamed over Bluetooth away from the laptop; battery strapped
+// under the frame, ESCs powered; axis ratio 1.19, off-diagonal 6.1%, CV 8.3%
+// on the fit set / 9.4% incl. interference bursts). The hard-iron offset
+// moved a lot vs the 2026-06-30 cal — that's the battery relocation:
+// recalibrate after any layout/power change. ~8% CV appears to be this
+// airframe's floor with power on.
+const float MAG_B[3] = { -15.5383f, 20.9900f, -16.2438f };
 
 const float MAG_A[3][3] = {
-  {  0.9916f,  0.0397f, -0.0145f },
-  {  0.0397f,  0.9474f,  0.0108f },
-  { -0.0145f,  0.0108f,  1.0731f }
+  {  1.0340f,  0.0612f, -0.0023f },
+  {  0.0612f,  0.9243f,  0.0192f },
+  { -0.0023f,  0.0192f,  1.0615f }
 };
 
 // Stall detection / recovery. The ICM-20948 reads its magnetometer over an

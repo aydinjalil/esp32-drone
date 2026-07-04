@@ -59,17 +59,21 @@ time_ms,roll_deg,pitch_deg,yaw_deg,magYaw_deg,mx,my,mz,gz,dt
 to body frame.
 
 ```c
-const float MAG_B[3] = { -7.4741f, 24.7962f, -20.4835f };    // hard iron
+const float MAG_B[3] = { -15.5383f, 20.9900f, -16.2438f };   // hard iron
 const float MAG_A[3][3] = {                                   // soft iron (3x3)
-  {  0.9916f,  0.0397f, -0.0145f },
-  {  0.0397f,  0.9474f,  0.0108f },
-  { -0.0145f,  0.0108f,  1.0731f }
+  {  1.0340f,  0.0612f, -0.0023f },
+  {  0.0612f,  0.9243f,  0.0192f },
+  { -0.0023f,  0.0192f,  1.0615f }
 };
 ```
-Source: **on-drone** capture (2026-06-30, 11045 samples; axis ratio 1.17,
-off-diagonal 4.0%, CV 8.37%). The residual CV is laptop proximity during capture
-— recapture far from metal/electronics for flight-grade heading. Earlier bench
-values were `MAG_B = {-13.54, -31.06, 75.98}` (CV 8.8%). Regenerate with
+Source: **flight-config** capture (2026-07-04, 18.9k samples streamed over
+Bluetooth with `mag_capture_bt.ino`, drone on battery away from the laptop;
+battery strapped under the frame, ESCs powered; axis ratio 1.19, off-diagonal
+6.1%, CV 8.3% on the fit set / 9.4% incl. interference bursts). ~8% CV appears
+to be this airframe's floor with power on. The hard-iron offset shifted
+substantially vs the 2026-06-30 top-battery cal (`MAG_B = {-7.47, 24.80,
+-20.48}`, CV 8.37%) — **recalibrate after any layout/power change**. Earlier
+bench values were `MAG_B = {-13.54, -31.06, 75.98}` (CV 8.8%). Regenerate with
 `mag_calibrate.py` (see §5).
 
 ---

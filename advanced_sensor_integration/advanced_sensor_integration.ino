@@ -112,13 +112,14 @@ float magMaxZ = -10000;
 // MAGNETOMETER CALIBRATION (ICM-20948 / AK09916)
 // Calibrated sample: m_cal = MAG_A * (m_raw - MAG_B) in the native sensor
 // frame, then remapped to body frame (see readMagBody).
-// From a 100%-coverage ellipsoid fit; see drone_imu/docs/ICM20948_STATUS.md.
+// Flight-config cal 2026-07-04 (BT capture on battery, under-frame battery,
+// ESCs powered) — matches imu_debug.ino; see drone_imu/docs/ICM20948_STATUS.md.
 // ======================================================
-const float MAG_B[3] = { -13.5353f, -31.0572f, 75.9761f };
+const float MAG_B[3] = { -15.5383f, 20.9900f, -16.2438f };
 const float MAG_A[3][3] = {
-  {  0.9747f, -0.0153f,  0.0226f },
-  { -0.0153f,  1.0855f, -0.0771f },
-  {  0.0226f, -0.0771f,  0.9614f }
+  {  1.0340f,  0.0612f, -0.0023f },
+  {  0.0612f,  0.9243f,  0.0192f },
+  { -0.0023f,  0.0192f,  1.0615f }
 };
 
 // ======================================================

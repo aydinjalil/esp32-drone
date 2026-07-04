@@ -233,8 +233,23 @@ def main():
     raw = load_csv(args.csv)
     print(f"Loaded {raw.shape[0]} samples from {args.csv}\n")
 
-    # --- Full 3x3 ellipsoid fit ---
-    center, A, radius, semi_axes = fit_ellipsoid(raw)
+    # --- Full 3x3 ellipsoid fit, with robust residual refinement ---
+    # Interference bursts (current pulses, nearby steel during part of the
+    # sweep) survive the load-time filters because each sample is individually
+    # plausible. Iteratively refit without >3-sigma |m| residuals: on a clean
+    # capture this drops ~nothing; on a polluted one it recovers the shell.
+    fit_pts = raw
+    center, A, radius, semi_axes = fit_ellipsoid(fit_pts)
+    for _ in range(4):
+        m = np.linalg.norm((A @ (fit_pts - center).T).T, axis=1)
+        keep = np.abs(m - m.mean()) < 3.0 * m.std()
+        if keep.all():
+            break
+        fit_pts = fit_pts[keep]
+        center, A, radius, semi_axes = fit_ellipsoid(fit_pts)
+    if len(fit_pts) < len(raw):
+        print(f"Residual refinement: fit uses {len(fit_pts)}/{len(raw)} samples "
+              f"(dropped {len(raw) - len(fit_pts)} interference outliers)\n")
     cal_full = (A @ (raw - center).T).T
 
     # --- Existing diagonal constants, for comparison ---
