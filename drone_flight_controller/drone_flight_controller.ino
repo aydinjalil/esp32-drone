@@ -438,6 +438,13 @@ void detectDisarm(){
 // =========================
 // SAFETY CEILING
 // =========================
+// Above the ceiling: command a gentle DESCENT, not hoverThrottle. Hover
+// throttle varies with battery charge — on a fresh pack 0.42 was still a
+// climb (v kept increasing under the clamp, 2026-07-04) and the drone sailed
+// through the ceiling into the taut tether. Also cap the STORED pilot
+// throttle: the pilot keeps pressing '+' while clamped ("nothing happens"),
+// and the stored value slams in the moment h drops below the ceiling —
+// observed as full 0.54 releasing onto a 14-deg-tilted drone mid-fall.
 float computeSafeThrottle(float  pilotThrottle){
   if(!armed || h < MAX_ALTITUDE) return pilotThrottle;
   static unsigned long lastCeilingMsgMs = 0;   // 1/s, not 50/s
@@ -445,7 +452,8 @@ float computeSafeThrottle(float  pilotThrottle){
     lastCeilingMsgMs = millis();
     Serial.printf("CEILING HIT: %.1fm\n", h);
   }
-  return hoverThrottle;
+  if (manualThrottle > hoverThrottle) manualThrottle = hoverThrottle;
+  return hoverThrottle * 0.85f;
 }
 
 // =========================
