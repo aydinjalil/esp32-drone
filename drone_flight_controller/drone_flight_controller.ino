@@ -140,8 +140,11 @@ float manualThrottle = 0.0f;     // 0 .. THR_MAX
 const float THR_STEP = 0.02f;    // 2% per keypress
 const float THR_MAX  = 0.75f;    // early-test ceiling; raise after validation
 
-// Attitude PID
-float Kp = 1.5f, Ki = 0.05f, Kd = 0.2f;
+// Attitude PID. Tunable live over serial/BT (p/P, i/I, x/X keys, g to print)
+// so a tether tuning session doesn't need a reflash per iteration. Started at
+// Kp=1.5/Kd=0.2 — visibly oscillated on the tether before liftoff (2026-07-04),
+// so defaults lowered; tune up from stable, not down from shaking.
+float Kp = 1.0f, Ki = 0.05f, Kd = 0.1f;
 float errI_roll = 0, errI_pitch = 0, lastErr_roll = 0, lastErr_pitch = 0;
 
 // ESC objects
@@ -370,6 +373,21 @@ void handleCommand(char c){
   } else if (c == '0' || c == ' '){
     manualThrottle = 0.0f;
     ack("THR 0 (idle)");
+  } else if (c == 'p' || c == 'P'){
+    Kp = constrain(Kp + (c == 'P' ? 0.1f : -0.1f), 0.0f, 5.0f);
+    snprintf(buf, sizeof(buf), "Kp %.2f", Kp);
+    ack(buf);
+  } else if (c == 'i' || c == 'I'){
+    Ki = constrain(Ki + (c == 'I' ? 0.01f : -0.01f), 0.0f, 1.0f);
+    snprintf(buf, sizeof(buf), "Ki %.3f", Ki);
+    ack(buf);
+  } else if (c == 'x' || c == 'X'){
+    Kd = constrain(Kd + (c == 'X' ? 0.02f : -0.02f), 0.0f, 1.0f);
+    snprintf(buf, sizeof(buf), "Kd %.3f", Kd);
+    ack(buf);
+  } else if (c == 'g'){
+    snprintf(buf, sizeof(buf), "Kp %.2f Ki %.3f Kd %.3f", Kp, Ki, Kd);
+    ack(buf);
   }
 }
 
