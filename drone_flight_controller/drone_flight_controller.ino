@@ -125,8 +125,14 @@ bool btWasConnected = false;   // for the BT link-loss failsafe
 bool armed = false;
 bool killed = false;        // emergency-stop latch (motors forced idle until reset)
 float takeoffGroundPressure = 0.0f;
-const float MAX_ALTITUDE = 120.0f;
-float hoverThrottle = 0.55f; // Tune this for motors
+// TETHER-PHASE VALUES (2026-07-04). The ceiling clamp doubles as a tether
+// guard: both taut-tether yanks happened at h~1.0m, so cap flight at 0.8m
+// until untethered. hoverThrottle measured from flight logs (liftoff ~0.42);
+// the old 0.55 guess was a climb command — as the ceiling clamp value it
+// would have kept climbing INTO the rope. Restore a real ceiling (and re-
+// measure hover) for open-air flight.
+const float MAX_ALTITUDE = 0.8f;
+float hoverThrottle = 0.42f;
 
 // Motor outputs (0.0 - 1.0 normalized)
 float motorFR = 0.0f, motorFL = 0.0f, motorBL = 0.0f, motorBR = 0.0f;
