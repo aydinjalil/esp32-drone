@@ -457,7 +457,9 @@ float computeSafeThrottle(float  pilotThrottle){
   static unsigned long lastCeilingMsgMs = 0;   // 1/s, not 50/s
   if (millis() - lastCeilingMsgMs > 1000){
     lastCeilingMsgMs = millis();
-    Serial.printf("CEILING %.0f%%: %.2fm\n", k * 100.0f, h);
+    char cbuf[40];   // via ack(): the BT pilot must SEE the guard engage —
+    snprintf(cbuf, sizeof(cbuf), "CEILING %.0f%%: %.2fm", k * 100.0f, h);
+    ack(cbuf);       // it was USB-only and invisible in flight (2026-07-04)
   }
   // Drain stored pilot throttle once fully clamped so the hand-back on
   // descent is never a jump (observed 0.54 releasing onto a tilted drone).
@@ -715,7 +717,10 @@ void loop() {
   // Single fused measurement update (was applied twice: baro, then again inline).
   // ToF has priority when valid and in range (cm-accurate near ground); otherwise
   // fall back to the barometer. kalmanUpdate() now also reduces the covariance.
-  if (tofValid && tofAlt < 4.0f) {
+  // Tilt gate: past ~35 deg the ToF is not looking at the ground — an inverted
+  // drone read its 2.4m distance TO THE ROOM CEILING as altitude (2026-07-04).
+  bool tofAimedAtGround = fabs(roll) < 0.6f && fabs(pitch) < 0.6f;
+  if (tofValid && tofAimedAtGround && tofAlt < 4.0f) {
     kalmanUpdate(tofAlt, R_tof);
   } else if (millis() - lastBaroMs < BARO_STALE_MS) {
     kalmanUpdate(baroAlt, R_baro);
