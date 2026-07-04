@@ -445,15 +445,24 @@ void detectDisarm(){
 // throttle: the pilot keeps pressing '+' while clamped ("nothing happens"),
 // and the stored value slams in the moment h drops below the ceiling —
 // observed as full 0.54 releasing onto a 14-deg-tilted drone mid-fall.
+// SOFT ceiling: blend from pilot throttle toward a gentle descent over the
+// last CEILING_BAND meters below MAX_ALTITUDE instead of stepping at the
+// line. The hard step (0.48 -> 0.36 in one loop) landed in the same instant
+// as a +20 deg roll upset on 2026-07-04; a blend eases the drone down before
+// it ever reaches the tether zone and has no discontinuity to excite.
+const float CEILING_BAND = 0.2f;
 float computeSafeThrottle(float  pilotThrottle){
-  if(!armed || h < MAX_ALTITUDE) return pilotThrottle;
+  if(!armed || h < MAX_ALTITUDE - CEILING_BAND) return pilotThrottle;
+  float k = constrain((h - (MAX_ALTITUDE - CEILING_BAND)) / CEILING_BAND, 0.0f, 1.0f);
   static unsigned long lastCeilingMsgMs = 0;   // 1/s, not 50/s
   if (millis() - lastCeilingMsgMs > 1000){
     lastCeilingMsgMs = millis();
-    Serial.printf("CEILING HIT: %.1fm\n", h);
+    Serial.printf("CEILING %.0f%%: %.2fm\n", k * 100.0f, h);
   }
-  if (manualThrottle > hoverThrottle) manualThrottle = hoverThrottle;
-  return hoverThrottle * 0.85f;
+  // Drain stored pilot throttle once fully clamped so the hand-back on
+  // descent is never a jump (observed 0.54 releasing onto a tilted drone).
+  if (k >= 1.0f && manualThrottle > hoverThrottle) manualThrottle = hoverThrottle;
+  return pilotThrottle * (1.0f - k) + (hoverThrottle * 0.85f) * k;
 }
 
 // =========================
