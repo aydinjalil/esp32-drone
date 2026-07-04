@@ -12,10 +12,10 @@
 #include "BluetoothSerial.h"
 
 // ================= I2C =================
-// ToF XSHUT is physically wired to GPIO2. CAUTION: GPIO2 is a boot-strap pin
-// (must be low/floating to enter the serial bootloader) — if the breakout's
-// XSHUT pull-up ever makes uploads fail, move the wire + this define to GPIO4.
-#define XSHUT_PIN 2
+// ToF XSHUT on GPIO4 (safe, non-strap pin). Do NOT use GPIO2: it's a
+// boot-strap pin, and the breakout's XSHUT pull-up can block the serial
+// bootloader (upload failures).
+#define XSHUT_PIN 4
 TwoWire I2Cdev = TwoWire(0);
 
 // PINS

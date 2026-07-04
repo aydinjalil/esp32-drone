@@ -25,8 +25,8 @@ ToF-priority Kalman update path and the `tofPresent`/`tofValid` guards are alrea
 in place from earlier. It just needs the sensor wired + verified. Improves the
 altitude signal that altitude-hold (step 2) depends on near the ground.
 **Steps:**
-- Wire VL53L4CX: shared I²C (SDA 21 / SCL 22), `XSHUT → GPIO 2` (as physically
-  wired; GPIO2 is a strap pin — move to GPIO4 if uploads ever fail), power/GND.
+- Wire VL53L4CX: shared I²C (SDA 21 / SCL 22), `XSHUT → GPIO 4` (NOT GPIO2 —
+  strap pin, its XSHUT pull-up can block uploads), power/GND.
 - Flash `i2c_scan.ino` → expect `0x29` to join `0x69` + `0x47`.
 - Quick read test (a small sketch or the FC): confirm `tof:` in telemetry shows a
   real distance and `tofPresent`/`tofValid` behave.
