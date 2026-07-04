@@ -1,3 +1,5 @@
+import argparse
+
 import serial
 import numpy as np
 
@@ -5,7 +7,14 @@ from PyQt5 import QtWidgets, QtCore
 import pyqtgraph as pg
 import time
 
-serialPort = "/dev/cu.usbserial-0001"
+# Default is the USB flashing port; for an untethered Bluetooth sweep
+# (mag_capture_bt.ino on battery) pass:  --port /dev/cu.DRONE_FC
+parser = argparse.ArgumentParser(description="Live magnetometer capture + scatter plots")
+parser.add_argument("--port", default="/dev/cu.usbserial-0001",
+                    help="serial port (USB: /dev/cu.usbserial-0001, BT: /dev/cu.DRONE_FC)")
+args = parser.parse_args()
+
+serialPort = args.port
 baud = 115200
 
 to = .1
