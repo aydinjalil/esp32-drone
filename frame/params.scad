@@ -195,3 +195,20 @@ cam_lens_sep = 19;   // micro FPV camera lens-bolt spacing
 cam_angles   = [0, 15, 30, 45]; // selectable tilt holes
 cam_pivot_y  = 10;   // pivot hole height above the plate base
 cam_angle_r  = 14;   // radius of the angle-selector holes from the pivot
+
+// ---- Battery skid (Part 6) — landing gear around the under-slung pack -------
+// The pack is strapped UNDER the frame and the drone was balancing on it like
+// a ridge: it teetered at partial thrust and struck props on every liftoff
+// attempt. The skid turns the pack into a 4-point landing base: the battery
+// rides in a ladder cradle whose two transverse skis end in wide feet. The
+// existing velcro straps (frame slots at batt_strap_sep) wrap pack + skid
+// together — no new fasteners, straps recessed so the feet sit flat.
+skid_span       = 140;  // ski tip-to-tip stance across X (roll axis)
+skid_bar_w      = 16;   // each ski bar's width along Y
+skid_slab_t     = 6;    // slab thickness; the pack rests on its top face
+skid_wall_h     = 8;    // side-rail wall rising above the slab (guides pack)
+skid_rail_w     = 5;    // side-rail width (X)
+skid_ski_sep    = 76;   // ski centers along Y — matches batt_strap_sep slots
+skid_relief_l   = 70;   // central under-ski relief span (strap passage): the
+skid_relief_d   = 2;    //   skid stands on 4 tip pads, strap sits recessed
+skid_tip_ch     = 3;    // 45deg chamfer on the ski tips' leading bottom edges
