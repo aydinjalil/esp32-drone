@@ -212,3 +212,18 @@ skid_ski_sep    = 76;   // ski centers along Y — matches batt_strap_sep slots
 skid_relief_l   = 70;   // central under-ski relief span (strap passage): the
 skid_relief_d   = 2;    //   skid stands on 4 tip pads, strap sits recessed
 skid_tip_ch     = 3;    // 45deg chamfer on the ski tips' leading bottom edges
+
+// Rigid mount: 4 corner posts rise from the side rails up to the frame belly,
+// each capped with an M3 heat-set insert. Placed at the frame's FULL-WIDTH
+// bands (body y~24 front, y~80 rear) where ~6mm of plate sits beside the pack.
+// Posts sit ON the rails (x flush with the pack-side wall, so they don't
+// intrude on the pack channel). Assembly: drop pack in, hold skid to the
+// belly, mark through the 4 post bores, drill the plate 3.2mm, press inserts
+// into the post tops, bolt DOWN from the plate top face. The posts are their
+// own drill template — no measuring. Needs 4x M3 screws ~12mm (6mm plate +
+// insert) and 4 M3 heat-set inserts.
+skid_post_fy    = -26;  // front post pair: y from pack center (-> body y~25)
+skid_post_ry    =  29;  // rear post pair:  y from pack center (-> body y~80)
+skid_post_w     = 12;   // post width along Y
+// post_t and post_x are derived in the part from the rail so the post's inner
+// face stays flush with the pack-channel wall (no pack intrusion).
