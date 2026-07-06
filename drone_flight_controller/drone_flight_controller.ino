@@ -516,6 +516,15 @@ void updateTOF() {
     }
     tof.VL53L4CX_ClearInterruptAndStartMeasurement();
   }
+  // Staleness guard: a real range over a real surface always jitters at the
+  // mm level. After a crash (2026-07-06) the sensor served EXACTLY 2587mm,
+  // frozen, for 30+s with RangeStatus 0 — and the Kalman pinned h at 2.59m
+  // on the floor. Millimeter-identical readings for >1s = frozen data.
+  static uint16_t lastTofMm = 0;
+  static unsigned long lastTofChangeMs = 0;
+  uint16_t nowMm = (uint16_t)(tofAlt * 1000.0f);
+  if (nowMm != lastTofMm) { lastTofMm = nowMm; lastTofChangeMs = millis(); }
+  else if (tofValid && millis() - lastTofChangeMs > 1000) tofValid = false;
 }
 
 void updateBarometer() {
